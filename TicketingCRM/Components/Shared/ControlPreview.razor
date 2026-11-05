@@ -1,0 +1,15 @@
+<section class="panel control-preview">
+    <div class="panel-heading"><div><h2>Make the details feel effortless.</h2><p>Try the App Souls controls. These selections are a preview and are not saved.</p></div><span class="availability">INTERACTION PREVIEW</span></div>
+    <div class="control-grid">
+        <SoulDropdown Id="preview-workflow" Label="Workflow" Options="Workflows" @bind-Value="Workflow" />
+        <SoulDateTimePicker Id="preview-date" Label="Follow-up date and time" @bind-Value="FollowUp" />
+        <div class="soul-field"><label for="preview-note">Follow-up note</label><input id="preview-note" class="soul-input" placeholder="What would you like to follow up on?" @bind="Note" /></div>
+    </div>
+    <div class="selection-summary" role="status"><span class="status-dot"></span>@Workflow<span>·</span>@(FollowUp is null ? "No date selected" : FollowUp.Value.ToString("dd MMM yyyy, HH:mm"))</div>
+</section>
+@code {
+    private static readonly string[] Workflows = ["Customer follow-up", "Contract review", "License renewal", "Support check-in"];
+    private string Workflow = "Customer follow-up";
+    private DateTime? FollowUp;
+    private string Note = "";
+}

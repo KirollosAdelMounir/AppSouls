@@ -1,0 +1,6 @@
+@page "/customers/{Id:guid}"
+@attribute [Authorize]
+@using TicketingCRM.Components.Customers
+<PageTitle>Customer lifecycle | App Souls</PageTitle>
+<CustomerLifecycleWorkspace CustomerId="Id" @rendermode="InteractiveServer" />
+@code{[Parameter]public Guid Id{get;set;}}

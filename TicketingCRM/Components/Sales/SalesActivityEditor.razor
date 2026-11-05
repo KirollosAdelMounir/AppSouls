@@ -1,0 +1,10 @@
+@using TicketingCRM.ViewModels
+@if(Model.ActivityRecord is not null){<section class="panel workspace-form page-enter"><h2>Record sales activity</h2><form @onsubmit="OnSave" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@Disabled"><div class="form-grid"><SoulDropdown Label="Activity type" Options="SalesPipelineViewModel.ActivityKinds" @bind-Value="Model.ActivityKind" /><div class="soul-field"><label for="sales-activity-subject">Subject</label><input @ref="SubjectInput" id="sales-activity-subject" class="soul-input" @bind="Model.ActivitySubject" required maxlength="200" /></div><SoulDateTimePicker Label="Follow-up at UTC" UseUtc="true" @bind-Value="Model.ActivityFollowUp" /><div class="soul-field"><label for="sales-activity-notes">Internal notes</label><textarea id="sales-activity-notes" class="soul-input" @bind="Model.ActivityNotes" maxlength="1500"></textarea></div></div><div class="sales-actions"><button type="submit" class="button primary">Save activity</button><button type="button" class="button secondary" @onclick="OnCancel">Cancel</button></div></fieldset></form></section>}
+@code {
+ [Parameter]public SalesPipelineViewModel Model{get;set;}=default!;
+ [Parameter]public bool Disabled{get;set;}
+ [Parameter]public EventCallback OnSave{get;set;}
+ [Parameter]public EventCallback OnCancel{get;set;}
+ private ElementReference SubjectInput;private Guid? Focused;
+ protected override async Task OnAfterRenderAsync(bool firstRender){if(Model.ActivityRecord is {} id&&Focused!=id){Focused=id;await SubjectInput.FocusAsync();}if(Model.ActivityRecord is null)Focused=null;}
+}

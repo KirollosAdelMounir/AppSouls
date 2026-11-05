@@ -1,0 +1,54 @@
+<div class="soul-field">
+    <label id="@($"{Id}-label")" for="@Id">@Label</label>
+    @if (ClientTheme)
+    {
+        <details class="soul-dropdown" data-appearance-picker>
+            <summary id="@Id" aria-labelledby="@($"{Id}-label")"><span data-appearance-label>Appearance</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></summary>
+            <div class="dropdown-panel" role="group" aria-labelledby="@($"{Id}-label")">
+                @foreach (var option in Options)
+                {
+                    <button type="button" class="dropdown-option" data-appearance-value="@option.ToLowerInvariant()"><span>@option</span><span class="appearance-check" aria-hidden="true">✓</span></button>
+                }
+            </div>
+        </details>
+    }
+    else if (!string.IsNullOrEmpty(FormFieldName))
+    {
+        <details class="soul-dropdown" data-form-dropdown>
+            <summary id="@Id" aria-labelledby="@($"{Id}-label")"><span>@Value</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></summary>
+            <div class="dropdown-panel" role="group" aria-labelledby="@($"{Id}-label")">
+                @foreach (var option in FormOptions)
+                {
+                    <button type="submit" class="dropdown-option" name="@FormFieldName" value="@option.Key">@option.Value</button>
+                }
+            </div>
+        </details>
+    }
+    else
+    {
+    <details class="soul-dropdown" @onkeydown="OnKeyDown" open="@IsOpen">
+        <summary @ref="Trigger" id="@Id" aria-labelledby="@($"{Id}-label")" @onclick="Toggle" @onclick:preventDefault><span>@Value</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></summary>
+        <div class="dropdown-panel" role="group" aria-labelledby="@($"{Id}-label")">
+            @foreach (var option in Options)
+            {
+                <button type="button" class="dropdown-option" aria-pressed="@(Value == option)" @onclick="() => Select(option)" @key="option"><span>@option</span>@if (Value == option) { <span aria-hidden="true">✓</span> }</button>
+            }
+        </div>
+    </details>
+    }
+</div>
+@code {
+    [Parameter] public string? FormFieldName { get; set; }
+    [Parameter] public IReadOnlyDictionary<string,string> FormOptions { get; set; } = new Dictionary<string,string>();
+    [Parameter] public bool ClientTheme { get; set; }
+    [Parameter] public string Id { get; set; } = $"select-{Guid.NewGuid():N}";
+    [Parameter] public string Label { get; set; } = "Select an option";
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = [];
+    private bool IsOpen;
+    private ElementReference Trigger;
+    private void Toggle() => IsOpen = !IsOpen;
+    private async Task OnKeyDown(KeyboardEventArgs e) { if (e.Key == "Escape") { IsOpen = false; await Trigger.FocusAsync(); } }
+    private async Task Select(string value) { IsOpen = false; await ValueChanged.InvokeAsync(value); await Trigger.FocusAsync(); }
+}

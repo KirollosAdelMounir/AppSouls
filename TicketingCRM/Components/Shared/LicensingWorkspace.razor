@@ -1,0 +1,48 @@
+@using TicketingCRM.ViewModels
+@inject TicketingCRM.Domain.Licensing.Interfaces.ILicensingService Licensing
+@inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
+@if (Model.Snapshot is null)
+{
+    <section class="panel empty-state" aria-busy="@Model.Busy"><h2>Licensing workspace</h2><p>@(Model.Message ?? "Loading your authorized license records…")</p><button class="button secondary" @onclick="Model.LoadAsync" disabled="@Model.Busy">Reload</button></section>
+}
+else
+{
+<div class="licensing-workspace" aria-busy="@Model.Busy">
+    @if(Model.Message is not null){<p role="@(Model.HasError ? "alert" : "status")" class="report-preview-notice">@Model.Message</p>}
+    @if(Model.Enrollment?.CredentialToken is {} token)
+    {
+        <section class="panel report-intake"><h2>Save this installation credential</h2><p>Store it in your application secret store. Send it as a Bearer credential to the renewal endpoint. Keep your installation private key on its original machine.</p><code class="license-credential">@token</code></section>
+    }
+    <section class="panel report-intake">
+        <div class="panel-heading"><div><h2>Register an installation</h2><p>Generate an RSA key pair in your application. Submit only its public key.</p></div></div>
+        <div class="control-grid">
+            <SoulDropdown Label="Purchased entitlement" Options="Model.Entitlements" @bind-Value="Model.Entitlement" />
+            <div class="soul-field"><label for="installation-name">Installation name</label><input id="installation-name" class="soul-input" @bind="Model.InstallationName" maxlength="160" /></div>
+            <div class="soul-field report-wide"><label for="installation-public-key">Installation public key in PEM format</label><textarea id="installation-public-key" class="soul-input" rows="5" maxlength="8192" @bind="Model.PublicKey" spellcheck="false"></textarea></div>
+        </div>
+        <button class="button primary" @onclick="Model.EnrollAsync" disabled="@Model.Busy">Register installation</button>
+    </section>
+    @if(Model.Snapshot.CanManage)
+    {
+    <section class="panel report-intake">
+        <div class="panel-heading"><div><h2>Issue or renew a license</h2><p>Rights and validity come from the approved entitlement. Each issuance creates a new signed, encrypted revision.</p></div></div>
+        <div class="control-grid">
+            <SoulDropdown Label="Installation" Options="Model.Installations" @bind-Value="Model.SelectedInstallation" />
+            <SoulDropdown Label="Published model" Options="Model.Schemas" Value="@Model.SelectedSchema" ValueChanged="Model.ChooseSchema" />
+            @foreach(var field in Model.SelectedFields){<LicenseAttributeInput @key="field.AttributeId" Field="field" Value="@(Model.Values.GetValueOrDefault(field.AttributeId)??string.Empty)" ValueChanged="value=>Model.Values[field.AttributeId]=value" />}
+
+        </div>
+        <button class="button primary" @onclick="Model.IssueAsync" disabled="@Model.Busy">Issue license revision</button>
+    </section>
+    }
+    <section class="panel report-intake"><h2>Ready licenses</h2>
+        @if(Model.Snapshot.Licenses.Count==0){<p>No licenses have been issued for your accessible installations.</p>}
+        else{<ul class="license-field-list">@foreach(var license in Model.Snapshot.Licenses){<li @key="license.Id"><span>Revision @license.Revision · @license.IssuedAtUtc.ToString("u") · @(Model.Snapshot.Installations.FirstOrDefault(x=>x.Id==license.InstallationId)?.Name??"Installation")</span><a class="button secondary" href="@($"/api/licensing/revisions/{license.Id}/download")" data-enhance-nav="false">Download @license.Extension</a></li>}</ul>}
+    </section>
+    @if(Model.Snapshot.CanManage){<section class="panel report-intake"><h2>Published model exports</h2><ul class="license-field-list">@foreach(var schema in Model.Snapshot.Schemas){<li @key="schema.Id"><span>@schema.Name · revision @schema.Revision · @schema.Extension</span><a class="button secondary" href="@($"/api/licensing/schemas/{schema.Id}/export")" data-enhance-nav="false">Download four language models</a></li>}</ul></section>}
+</div>
+}
+@code {
+    private LicensingWorkspaceViewModel Model = null!;
+    protected override async Task OnInitializedAsync(){Model=new(Licensing,Workspace);await Model.LoadAsync();}
+}

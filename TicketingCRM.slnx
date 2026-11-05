@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TicketingCRM.Core/TicketingCRM.Core.csproj" />
+    <Project Path="src/TicketingCRM.DataConnection/TicketingCRM.DataConnection.csproj" />
+    <Project Path="src/TicketingCRM.Domain/TicketingCRM.Domain.csproj" />
+    <Project Path="src/TicketingCRM.Infrastructure/TicketingCRM.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TicketingCRM.Core.Tests/TicketingCRM.Core.Tests.csproj" />
+    <Project Path="tests/TicketingCRM.DataConnection.Tests/TicketingCRM.DataConnection.Tests.csproj" />
+    <Project Path="tests/TicketingCRM.Infrastructure.Tests/TicketingCRM.Infrastructure.Tests.csproj" />
+  </Folder>
+  <Project Path="TicketingCRM/TicketingCRM.csproj" />
+</Solution>

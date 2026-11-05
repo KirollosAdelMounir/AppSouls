@@ -1,0 +1,12 @@
+@using TicketingCRM.Domain.Accounts.DTOs
+@using TicketingCRM.Domain.Accounts.Interfaces
+@inject IAccountSettingsService Accounts
+<details class="soul-dropdown profile-menu" data-form-dropdown>
+    <summary class="profile-trigger" aria-label="Account menu"><span class="profile">@Initials</span><span class="profile-name">@(Profile?.DisplayName??"My account")</span><span aria-hidden="true">⌄</span></summary>
+    <div class="dropdown-panel"><p class="profile-identity"><strong>@Profile?.DisplayName</strong><small>@Profile?.Email</small></p><a class="dropdown-option" href="/account/settings">Account settings</a><a class="dropdown-option" href="/account/security">Account security</a><form method="post" action="/account/sign-out" data-enhance="false"><AntiforgeryToken /><button type="submit" class="dropdown-option">Sign out</button></form></div>
+</details>
+@code {
+ private AccountProfile? Profile;
+ private string Initials=>string.Concat((Profile?.DisplayName??"A").Split(' ',StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x=>x[0])).ToUpperInvariant();
+ protected override async Task OnInitializedAsync(){try{Profile=await Accounts.GetAsync();}catch(UnauthorizedAccessException){ }}
+}

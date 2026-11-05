@@ -1,0 +1,15 @@
+@page "/account/activate"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+<PageTitle>Activate customer account | App Souls</PageTitle>
+<section class="panel account-panel page-enter"><h1>Set up your customer account</h1><p>Verify your email by using your invitation link, then choose a password with at least 8 characters, uppercase, lowercase, numbers and symbols.</p>
+@if(Error is not null){<p role="alert">The invitation is invalid, expired or already used, or the passwords do not meet policy. Reopen the invitation email to retry.</p>}
+<InvitationPasswordForm InvitationId="Id" @rendermode="InteractiveServer" />
+</section>
+@code {
+ [SupplyParameterFromQuery]public Guid Id{get;set;}
+ [SupplyParameterFromQuery]public string? Error{get;set;}
+ [CascadingParameter]public HttpContext Context{get;set;}=default!;
+ protected override void OnInitialized(){Context.Response.Headers.CacheControl="no-store";Context.Response.Headers["Referrer-Policy"]="no-referrer";}
+}

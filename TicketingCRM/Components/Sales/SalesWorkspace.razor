@@ -1,0 +1,84 @@
+@using System.Globalization
+@using TicketingCRM.ViewModels
+@using TicketingCRM.Domain.Sales.Models
+@using TicketingCRM.Domain.Sales.DTOs
+@inject TicketingCRM.Domain.Sales.Interfaces.ISalesPipelineService Service
+@inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
+@if(Model.Loading){<p class="loading-state" role="status">Loading your sales pipeline…</p>}
+else if(!Model.Allowed){<section class="panel workspace-form"><h2>Sales pipeline unavailable</h2><p>@Model.Error</p></section>}
+else if(Model.Data is { } data)
+{
+@if(Model.Error is not null){<p class="feedback" role="alert">@Model.Error</p>}
+@if(Model.Message is not null){<p class="feedback" role="status">@Model.Message</p>}
+<div class="sales-summary" aria-label="Sales overview"><div><span>Leads</span><strong>@data.LeadCount</strong></div><div><span>Opportunities</span><strong>@data.OpportunityCount</strong></div><p>One conversation at a time.<br />Every next step in view.</p></div>
+<div class="sales-toolbar"><SoulDropdown Id="sales-view" Label="Pipeline view" Value="@Model.Tab" ValueChanged="Model.ChangeTabAsync" Options="Views" /><span>Page @Model.Page · @data.PageSize records per page</span></div>
+<section class="panel workspace-form sales-records" aria-label="@Model.Tab">
+@if(Model.Tab=="Leads")
+{
+<h2 @ref="RecordsHeading" tabindex="-1">Leads</h2>
+@if(data.Leads.Count==0){<p>No leads on this page. Add a new contact to begin.</p>}
+@foreach(var lead in data.Leads)
+{
+ElementReference stageTrigger=default; ElementReference activityTrigger=default; ElementReference conversionTrigger=default;
+<article class="sales-record" @key="lead.Id"><div class="sales-record-heading"><div><h3>@lead.CompanyName</h3><p>@lead.ContactName · @lead.Email</p></div><span class="sales-stage">@lead.Stage</span></div>
+<p class="sales-record-meta">@Model.OwnerLabel(lead.OwnerUserId) @if(lead.FollowUpAtUtc is { } date){<span>· Follow-up @Utc(date)</span>}</p>
+@if(!string.IsNullOrEmpty(lead.Notes)){<p class="sales-notes">@lead.Notes</p>}
+<div class="sales-actions">
+@if(lead.Stage!=LeadStage.Converted){<button type="button" class="button secondary" disabled="@Model.Busy" @ref="stageTrigger" @onclick="()=>EditStage(lead,stageTrigger)">Change stage<span class="sr-only"> for @lead.CompanyName</span></button>}
+@if(lead.Stage==LeadStage.Qualified){<button type="button" class="button primary" disabled="@Model.Busy" @ref="conversionTrigger" @onclick="()=>BeginConversion(lead,conversionTrigger)">Convert lead<span class="sr-only"> @lead.CompanyName</span></button>}
+<button type="button" class="button secondary" disabled="@Model.Busy" @ref="activityTrigger" @onclick="()=>BeginActivity(lead,activityTrigger)">Record activity</button>
+<button type="button" class="button secondary" disabled="@Model.Busy" @onclick="()=>Model.ShowHistoryAsync(lead.Id,false,lead.CompanyName)">History<span class="sr-only"> for @lead.CompanyName</span></button>
+</div></article>
+}
+}
+else
+{
+<h2 @ref="RecordsHeading" tabindex="-1">Opportunities</h2>
+@if(data.Opportunities.Count==0){<p>No opportunities on this page. Convert a qualified lead or add an opportunity for an existing customer.</p>}
+@foreach(var opportunity in data.Opportunities)
+{
+ElementReference stageTrigger=default; ElementReference activityTrigger=default;
+<article class="sales-record" @key="opportunity.Id"><div class="sales-record-heading"><div><h3>@opportunity.Title</h3><p>@opportunity.CustomerName</p></div><span class="sales-stage">@opportunity.Stage</span></div>
+<p class="sales-value">@opportunity.Currency @opportunity.ExpectedValue.ToString("N2",CultureInfo.InvariantCulture)</p>
+<p class="sales-record-meta">@Model.OwnerLabel(opportunity.OwnerUserId) @if(opportunity.FollowUpAtUtc is { } date){<span>· Follow-up @Utc(date)</span>}</p>
+<div class="sales-actions">@if(opportunity.Stage!=OpportunityStage.Won){<button type="button" class="button secondary" disabled="@Model.Busy" @ref="stageTrigger" @onclick="()=>EditStage(opportunity,stageTrigger)">Change stage<span class="sr-only"> for @opportunity.Title</span></button>}
+<a class="button secondary" href="@($"/customers/{opportunity.CustomerId}")">Customer lifecycle</a><button type="button" class="button secondary" disabled="@Model.Busy" @ref="activityTrigger" @onclick="()=>BeginActivity(opportunity,activityTrigger)">Record activity</button>
+<button type="button" class="button secondary" disabled="@Model.Busy" @onclick="()=>Model.ShowHistoryAsync(opportunity.Id,true,opportunity.Title)">History<span class="sr-only"> for @opportunity.Title</span></button></div></article>
+}
+}
+<div class="sales-pagination"><button class="button secondary" type="button" disabled="@(Model.Busy||Model.Page==1)" @onclick="()=>Model.NavigateAsync(-1)">Previous</button><span>Page @Model.Page</span><button class="button secondary" type="button" disabled="@(Model.Busy||!Model.More)" @onclick="()=>Model.NavigateAsync(1)">Next</button></div>
+</section>
+<SalesActivityEditor Model="Model" Disabled="@(!InteractiveReady||Model.Busy)" OnSave="SaveActivity" OnCancel="CancelActivity" />
+<SalesStageEditor Model="Model" Disabled="@(!InteractiveReady||Model.Busy)" OnSave="SaveStage" OnCancel="CancelStage" />
+@if(Model.Converting is not null || Model.Tab=="Opportunities")
+{<SalesOpportunityForm Model="Model" Disabled="@(!InteractiveReady||Model.Busy)" OnCreate="SaveOpportunity" OnCancel="CancelConversion" />}
+else{<SalesLeadForm Model="Model" Disabled="@(!InteractiveReady||Model.Busy)" OnCreate="SaveLead" />}
+@if(Model.History is { } history)
+{
+<section class="panel workspace-form sales-history"><h2>History · @Model.HistoryTitle</h2><p>Latest 50 events, shown in UTC.</p><ol>@foreach(var item in history){<li @key="item.Id"><strong>@(string.IsNullOrEmpty(item.FromStage)?"Created":item.FromStage) → @item.ToStage</strong><time datetime="@item.OccurredAtUtc.ToString("O")">@Utc(item.OccurredAtUtc)</time>@if(!string.IsNullOrEmpty(item.Reason)){<p>@item.Reason</p>}</li>}</ol></section>
+}
+}
+@code {
+ private SalesPipelineViewModel Model=default!;
+ private bool InteractiveReady;
+ private ElementReference StageReturn,ConversionReturn,ActivityReturn,RecordsHeading;
+ private bool FocusRecords;
+ private async Task SaveActivity(){await Model.SaveActivityAsync();FocusRecords=Model.Error is null;}
+ private async Task SaveLead(){await Model.CreateLeadAsync();FocusRecords=Model.Error is null;}
+ private async Task SaveOpportunity(){await Model.CreateOpportunityAsync();FocusRecords=Model.Error is null;}
+ private async Task SaveStage(){await Model.SaveStageAsync();FocusRecords=Model.Error is null;}
+ protected override async Task OnAfterRenderAsync(bool firstRender){if(FocusRecords){FocusRecords=false;await RecordsHeading.FocusAsync();}}
+ private void BeginActivity(LeadDto record,ElementReference trigger){ActivityReturn=trigger;Model.BeginActivity(record);}
+ private void BeginActivity(OpportunityDto record,ElementReference trigger){ActivityReturn=trigger;Model.BeginActivity(record);}
+ private async Task CancelActivity(){Model.CancelActivity();await ActivityReturn.FocusAsync();}
+ private void EditStage(LeadDto lead,ElementReference trigger){StageReturn=trigger;Model.EditStage(lead);}
+ private void EditStage(OpportunityDto opportunity,ElementReference trigger){StageReturn=trigger;Model.EditStage(opportunity);}
+ private void BeginConversion(LeadDto lead,ElementReference trigger){ConversionReturn=trigger;Model.BeginConversion(lead);}
+ private async Task CancelStage(){Model.CancelStage();await StageReturn.FocusAsync();}
+ private async Task CancelConversion(){Model.CancelConversion();await ConversionReturn.FocusAsync();}
+ private static readonly string[] Views=["Leads","Opportunities"];
+ protected override async Task OnInitializedAsync(){Model=new(Service,Workspace,Actor);await Model.InitializeAsync();}
+ protected override void OnAfterRender(bool firstRender){if(firstRender){InteractiveReady=true;StateHasChanged();}}
+ private static string Utc(DateTimeOffset date)=>date.UtcDateTime.ToString("dd MMM yyyy HH:mm",CultureInfo.InvariantCulture)+" UTC";
+}

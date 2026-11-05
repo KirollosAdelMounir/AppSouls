@@ -1,0 +1,7 @@
+@using TicketingCRM.Components.Customers
+@using TicketingCRM.Components.Delivery
+@using TicketingCRM.Components.Contracts
+@if(Area=="customers"){<CustomerDirectory />}
+else if(Area=="products"){<ProductCatalog />}
+else if(Area=="contracts"){<ContractsWorkspace />}
+@code{[Parameter]public string Area{get;set;}="customers";}

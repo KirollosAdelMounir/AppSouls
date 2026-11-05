@@ -1,0 +1,46 @@
+@page "/account/continue"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using TicketingCRM.Controllers
+@using TicketingCRM.Domain.Identity.Interfaces
+@inject ISignInDirectory Directory
+<PageTitle>Continue sign-in | App Souls</PageTitle>
+<section class="panel account-panel page-enter">
+@if (Account is null)
+{
+<h1>Sign in to continue</h1><p>Your sign-in session is unavailable or expired.</p><a class="button primary" href="/account/login">Return to sign-in</a>
+}
+else if (RequiresMfa)
+{
+<h1>Verify your sign-in</h1><p>You previously enabled two-step verification for this account.</p>
+<form method="post" action="/account/complete-sign-in" data-enhance="false"><AntiforgeryToken />
+<div class="soul-field"><label for="code">Authenticator code</label><input class="soul-input" id="code" name="Code" inputmode="numeric" autocomplete="one-time-code" maxlength="32" /></div>
+<details class="soul-dropdown"><summary>Use a saved recovery code</summary><div class="dropdown-panel"><div class="soul-field"><label for="recovery">Recovery code</label><input class="soul-input" id="recovery" name="Recovery" type="password" autocomplete="off" maxlength="100" /></div></div></details>
+<button class="button primary" type="submit">Verify and continue</button></form>
+}
+else
+{
+<h1>Choose your workspace</h1><p>Choose one of the organizations linked to your account.</p>
+<form method="post" action="/account/complete-sign-in" data-enhance="false"><AntiforgeryToken />
+<SoulDropdown Id="workspace-choice" Label="Organization" Value="Choose your organization" FormFieldName="MembershipId" FormOptions="Options" />
+</form>
+}
+<p><a href="/account/login">Back to sign-in</a></p>
+</section>
+@code {
+ [CascadingParameter] public HttpContext HttpContext {get;set;}=default!;
+ private SignInAccount? Account; private bool RequiresMfa;
+ private IReadOnlyDictionary<string,string> Options=new Dictionary<string,string>();
+ protected override async Task OnInitializedAsync()
+ {
+  HttpContext.Response.Headers.CacheControl="no-store";
+  var pending=await HttpContext.AuthenticateAsync(AccountController.PendingScheme);
+  if(!pending.Succeeded||!Guid.TryParse(pending.Principal?.FindFirstValue(ClaimTypes.NameIdentifier),out var id))return;
+  Account=await Directory.FindAsync(id,pending.Principal.FindFirstValue("appsouls:stamp")??"");
+  RequiresMfa=Account?.TwoFactorEnabled==true&&!pending.Principal.HasClaim("appsouls:mfa","true");
+  Options=Account?.Workspaces.ToDictionary(x=>x.MembershipId.ToString(),x=>$"{x.Name} · {x.Role}")??new();
+ }
+}

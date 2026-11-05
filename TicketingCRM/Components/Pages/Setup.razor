@@ -1,0 +1,36 @@
+@page "/setup"
+@layout SetupLayout
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@using TicketingCRM.ViewModels
+@inject TicketingCRM.Domain.Administration.Interfaces.IServerSetupService Service
+<PageTitle>Server setup | App Souls</PageTitle>
+<div class="setup-intro"><p class="eyebrow">WELCOME TO APP SOULS</p><h1>Set up your system</h1><p>Prepare your administrator, then connect the database and activate your workspace.</p></div>
+@if(Model.Error is not null){<section class="panel account-panel"><p role="alert">@Model.Error</p></section>}
+else if(Model.State is { IsOpen:false }){<section class="panel account-panel"><h2>Your system is configured</h2><p>Initial setup is closed. Sign in with your administrator to manage customers, users and server settings.</p><a class="button primary" href="/account/login">Sign in</a></section>}
+else if(Model.State is { } state)
+{
+@if(Error is not null){<p class="feedback" role="alert">@(Error=="migration"?"A previous activation attempt did not complete. Test the database and email settings below, then retry. New errors will appear beside the form; your prepared administrator is retained.":"Administrator preparation could not be completed. Check the name, email, matching passwords and password requirements.")</p>}
+@if(state.AdministratorPrepared)
+{<ServerConfigurationSetup State="state" @rendermode="InteractiveServer" />}
+else
+{
+<section class="panel account-panel page-enter"><p class="eyebrow">STEP 1 OF 2</p><h2>Prepare your administrator</h2>
+<p>This user will become your platform administrator and organization owner when migration succeeds. MFA is optional.</p>
+<form method="post" action="/setup/administrator/prepare" data-enhance="false" class="setup-admin-form"><AntiforgeryToken />
+<div class="soul-field"><label for="organization">Organization name</label><input id="organization" class="soul-input" name="OrganizationName" required maxlength="200" autocomplete="organization" /></div>
+<div class="soul-field"><label for="admin-name">Your name</label><input id="admin-name" class="soul-input" name="DisplayName" required maxlength="200" autocomplete="name" /></div>
+<div class="soul-field setup-wide"><label for="admin-email">Administrator email</label><input id="admin-email" class="soul-input" name="Email" type="email" required maxlength="254" autocomplete="username" /></div>
+<div class="soul-field"><label for="admin-password">Password</label><input id="admin-password" class="soul-input" name="Password" type="password" required minlength="8" maxlength="1024" autocomplete="new-password" /></div>
+<div class="soul-field"><label for="admin-confirm">Confirm password</label><input id="admin-confirm" class="soul-input" name="ConfirmPassword" type="password" required minlength="8" maxlength="1024" autocomplete="new-password" /><small>At least 8 characters with uppercase, lowercase, numbers and symbols.</small></div>
+<button type="submit" class="button primary">Prepare administrator</button>
+</form>
+</section>
+}
+}
+@code {
+ [SupplyParameterFromQuery] public string? Error {get;set;}
+ [CascadingParameter] public HttpContext HttpContext {get;set;}=default!;
+ private ServerSetupViewModel Model=default!;
+ protected override async Task OnInitializedAsync(){HttpContext.Response.Headers.CacheControl="no-store";HttpContext.Response.Headers["Referrer-Policy"]="no-referrer";Model=new(Service);await Model.LoadAsync();}
+}

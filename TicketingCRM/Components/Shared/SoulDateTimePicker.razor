@@ -1,0 +1,43 @@
+@using System.Globalization
+<div class="soul-field">
+    <label id="@($"{Id}-label")" for="@Id">@Label</label>
+    <details class="soul-calendar" @onkeydown="OnKeyDown" open="@IsOpen">
+        <summary @ref="Trigger" id="@Id" aria-labelledby="@($"{Id}-label")" @onclick="Toggle" @onclick:preventDefault><span>@(Value?.ToString("dd MMM yyyy · HH:mm", CultureInfo.InvariantCulture) ?? "Choose date and time")</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v16H4ZM4 10h16M8 3v4M16 3v4" /></svg></summary>
+        <div class="calendar-panel">
+            <div class="calendar-header"><button type="button" aria-label="Previous month" @onclick="() => MoveMonth(-1)">‹</button><span aria-live="polite">@Month.ToString("MMMM yyyy", CultureInfo.InvariantCulture)</span><button type="button" aria-label="Next month" @onclick="() => MoveMonth(1)">›</button></div>
+            <div class="calendar-week" aria-hidden="true">@foreach (var day in Weekdays) { <span>@day</span> }</div>
+            <div class="calendar-days" role="group" aria-label="Choose a date">
+                @for (var blank = 0; blank < (int)Month.DayOfWeek; blank++) { <span></span> }
+                @for (var day = 1; day <= DateTime.DaysInMonth(Month.Year, Month.Month); day++)
+                {
+                    var date = new DateTime(Month.Year, Month.Month, day);
+                    <button type="button" class="@(Selected?.Date == date ? "selected" : "")" aria-pressed="@(Selected?.Date == date)" aria-label="@date.ToString("dddd d MMMM yyyy", CultureInfo.InvariantCulture)" @onclick="() => SelectDate(date)">@day</button>
+                }
+            </div>
+            <div class="calendar-time"><label for="@($"{Id}-time")">Time</label><input id="@($"{Id}-time")" type="time" @bind="Time" @bind:event="oninput" /><span>@(UseUtc ? "UTC" : "Local time")</span></div>
+            <div class="calendar-actions"><button type="button" class="button secondary" @onclick="Cancel">Cancel</button><button type="button" class="button primary" disabled="@(Selected is null)" @onclick="Apply">Apply</button></div>
+        </div>
+    </details>
+</div>
+@code {
+    [Parameter] public string Id { get; set; } = $"date-{Guid.NewGuid():N}";
+    [Parameter] public string Label { get; set; } = "Date and time";
+    [Parameter] public bool UseUtc {get;set;}
+    [Parameter] public DateTime? Value { get; set; }
+    [Parameter] public EventCallback<DateTime?> ValueChanged { get; set; }
+    private static readonly string[] Weekdays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+    private bool IsOpen;
+    private ElementReference Trigger;
+    private DateTime Month = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? Selected;
+    private TimeOnly Time;
+    private void Toggle() {
+        if (!IsOpen) { Selected = Value; var start = Value ?? (UseUtc ? DateTime.UtcNow.Date : DateTime.Today); Month = new(start.Year, start.Month, 1); Time = TimeOnly.FromDateTime(start); }
+        IsOpen = !IsOpen;
+    }
+    private void MoveMonth(int offset) { if (Month.Year == 1 && Month.Month == 1 && offset < 0 || Month.Year == 9999 && Month.Month == 12 && offset > 0) return; Month = Month.AddMonths(offset); }
+    private void SelectDate(DateTime date) => Selected = date;
+    private async Task Cancel() { IsOpen = false; await Trigger.FocusAsync(); }
+    private async Task OnKeyDown(KeyboardEventArgs e) { if (e.Key == "Escape") await Cancel(); }
+    private async Task Apply() { if (Selected is null) return; IsOpen = false; await ValueChanged.InvokeAsync(DateTime.SpecifyKind(Selected.Value.Date + Time.ToTimeSpan(), DateTimeKind.Unspecified)); await Trigger.FocusAsync(); }
+}

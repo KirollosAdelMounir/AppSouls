@@ -1,0 +1,36 @@
+@attribute [Authorize]
+@page "/customers"
+@page "/contracts"
+@page "/products"
+@page "/licenses"
+@page "/installations"
+@page "/support"
+@page "/settings"
+@inject NavigationManager Navigation
+<PageTitle>@Title | App Souls</PageTitle>
+<div class="page-heading"><div><p class="eyebrow">APP SOULS WORKSPACE</p><h1>@Title</h1><p>@Description</p></div><a class="button secondary" href="/">Back to overview</a></div>
+@if (Area == "settings")
+{
+    <ServerSettings @rendermode="InteractiveServer" />
+}
+else if (Area is "licenses" or "installations")
+{
+    <LicensingWorkspace @rendermode="InteractiveServer" />
+}
+else if (Area is "customers" or "products" or "contracts")
+{
+    <WorkspaceRecords Area="@Area" @rendermode="InteractiveServer" />
+}
+else if (Area == "support")
+{
+    <SupportWorkspace @rendermode="InteractiveServer" />
+}
+else
+{
+<section class="panel empty-state area-empty"><span class="empty-illustration"><AppIcon Name="@Area" /></span><h2>@Title workspace is being prepared</h2><p>This area is part of the approved implementation plan. Secure tenant access and persistent storage must be connected before records can be managed.</p><span class="availability">Foundation preview · Data services pending</span></section>
+}
+@code {
+    private string Area => Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
+    private string Title => Area switch { "customers" => "Customers", "contracts" => "Orders & contracts", "products" => "Software catalog", "licenses" => "Licenses", "installations" => "Installations", "support" => "Support", _ => "Settings" };
+    private string Description => Area switch { "customers" => "Every relationship, with the context that matters.", "licenses" => "Manage software access throughout its lifecycle.", "products" => "A home for your current and future software.", "installations" => "Understand where your software is activated.", "contracts" => "Connect commercial agreements to customer value.", "support" => "Keep the conversation going after the contract.", _ => "Shape your organization and workspace preferences." };
+}

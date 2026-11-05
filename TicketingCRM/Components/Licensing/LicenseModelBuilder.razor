@@ -1,0 +1,33 @@
+@using TicketingCRM.ViewModels
+@inject TicketingCRM.Domain.Licensing.Interfaces.ILicensingService Licensing
+@inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
+@if(Model.Snapshot is null){<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" /><p>Loading model definitions…</p>}
+else if(!Model.Snapshot.CanManage){<p role="alert">License administration access is required.</p>}
+else {
+<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
+    <section class="panel report-intake">
+        <div class="panel-heading"><div><h2>License model builder</h2><p>Publishing creates an immutable revision. Integer and decimal values use strings in every language.</p></div></div>
+        <div class="control-grid">
+            <SoulDropdown Label="Product" Options="Model.Products" @bind-Value="Model.Product" />
+            <div class="soul-field"><label for="license-model-name">Model name</label><input id="license-model-name" class="soul-input" @bind="Model.ModelName" maxlength="160" /></div>
+            <div class="soul-field"><label for="license-extension">License extension</label><input id="license-extension" class="soul-input" @bind="Model.Extension" maxlength="24" /></div>
+        </div>
+        <h3>Add an attribute</h3>
+        <div class="control-grid">
+            <div class="soul-field"><label for="license-field-id">Stable attribute ID</label><input id="license-field-id" class="soul-input" @bind="Model.FieldId" maxlength="64" /></div>
+            <div class="soul-field"><label for="license-field-label">Label</label><input id="license-field-label" class="soul-input" @bind="Model.FieldLabel" maxlength="160" /></div>
+            <SoulDropdown Label="Attribute type" Options="LicenseModelBuilderViewModel.FieldTypes" @bind-Value="Model.FieldType" />
+            <SoulDropdown Label="Value source" Options="LicenseModelBuilderViewModel.Sources" Value="@Model.Source" ValueChanged="Model.ChooseSource" />
+            <div class="soul-field license-checks"><label><input type="checkbox" @bind="Model.Required" /> Required</label><label><input type="checkbox" @bind="Model.Nullable" /> Allow null</label></div>
+        </div>
+        <button class="button secondary" @onclick="Model.AddField" disabled="@Model.Busy">Add attribute</button>
+        <ul class="license-field-list">@foreach(var field in Model.Fields){<li @key="field"><span><strong>@field.Label</strong> · @field.AttributeId · @field.Type · @field.Source @(field.IsRequired?"· required":"")</span><button class="button secondary" aria-label="@($"Remove {field.Label}")" @onclick="()=>Model.RemoveField(field)">Remove</button></li>}</ul>
+        <button class="button primary" @onclick="Model.PublishAsync" disabled="@Model.Busy">Publish model revision</button>
+    </section>
+
+<section class="panel workspace-form"><h2>Published models</h2><p>Mappings and definitions are immutable after publication. Changes create a new revision.</p><ul class="license-field-list">@foreach(var schema in Model.Snapshot.Schemas){<li @key="schema.Id"><span>@schema.Name · revision @schema.Revision · @schema.Extension</span><a class="button secondary" href="@($"/api/licensing/schemas/{schema.Id}/export")" data-enhance-nav="false">Export C#, JavaScript, Java &amp; Python</a></li>}</ul></section>
+}
+@code {
+ private LicenseModelBuilderViewModel Model=null!;
+ protected override async Task OnInitializedAsync(){Model=new(Licensing,Workspace);await Model.LoadAsync();}
+}

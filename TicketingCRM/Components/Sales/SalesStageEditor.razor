@@ -1,0 +1,24 @@
+@using TicketingCRM.ViewModels
+@if(Model.StageLead is not null || Model.StageOpportunity is not null)
+{
+<section class="panel workspace-form sales-stage-editor page-enter"><h2>Update stage</h2><p>@Model.StageTitle</p>
+<form @onsubmit="OnSave" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@Disabled">
+<SoulDropdown Id="sales-next-stage" Label="Next stage" @bind-Value="Model.NextStage" Options="Model.StageChoices" />
+<div class="soul-field"><label for="sales-stage-reason">Reason or note</label><textarea @ref="ReasonInput" id="sales-stage-reason" class="soul-input" @bind="Model.Reason" @bind:event="oninput" maxlength="2000" rows="3" aria-describedby="sales-reason-help"></textarea><small id="sales-reason-help">A reason is required when disqualifying, losing or reopening a record.</small></div>
+<div class="sales-actions"><button type="submit" class="button primary">Save stage</button><button type="button" class="button secondary" @onclick="OnCancel">Cancel</button></div>
+</fieldset></form></section>
+}
+@code {
+ [Parameter] public SalesPipelineViewModel Model {get;set;}=default!;
+ [Parameter] public bool Disabled {get;set;}
+ [Parameter] public EventCallback OnSave {get;set;}
+ [Parameter] public EventCallback OnCancel {get;set;}
+ private ElementReference ReasonInput;
+ private Guid? FocusedSubject;
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  var subject=Model.StageLead?.Id??Model.StageOpportunity?.Id;
+  if(subject is not null && FocusedSubject!=subject){FocusedSubject=subject;await ReasonInput.FocusAsync();}
+  if(subject is null)FocusedSubject=null;
+ }
+}

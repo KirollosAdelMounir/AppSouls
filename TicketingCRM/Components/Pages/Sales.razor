@@ -1,0 +1,5 @@
+@page "/sales"
+@attribute [Authorize]
+<PageTitle>Sales pipeline | App Souls</PageTitle>
+<div class="page-heading"><div><p class="eyebrow">FROM FIRST CONTACT TO CUSTOMER</p><h1>Sales pipeline</h1><p>Keep prospects, opportunities and the next conversation in view.</p></div><a class="button secondary" href="/customers">Customers</a></div>
+<TicketingCRM.Components.Sales.SalesWorkspace @rendermode="InteractiveServer" />

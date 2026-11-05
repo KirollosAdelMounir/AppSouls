@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../src/TicketingCRM.Domain/TicketingCRM.Domain.csproj" />
+    <ProjectReference Include="../src/TicketingCRM.Core/TicketingCRM.Core.csproj" />
+    <ProjectReference Include="../src/TicketingCRM.DataConnection/TicketingCRM.DataConnection.csproj" />
+    <ProjectReference Include="../src/TicketingCRM.Infrastructure/TicketingCRM.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.18.7" />
+  </ItemGroup>
+
+</Project>

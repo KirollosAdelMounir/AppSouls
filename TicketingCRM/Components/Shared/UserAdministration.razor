@@ -1,0 +1,44 @@
+@using TicketingCRM.ViewModels
+@inject TicketingCRM.Domain.Administration.Interfaces.IUserAdministrationService Service
+@inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
+@if (Model.Loading) { <p role="status" class="loading-state">Loading workspace users…</p> }
+else if (!Model.Allowed) { <section class="panel workspace-form"><h2>Administrator access required</h2><p>Your organization's owner or administrator manages user accounts.</p></section> }
+else
+{
+@if (Model.Error is not null) { <p class="feedback" role="alert">@Model.Error</p> }
+@if (Model.Message is not null) { <p class="feedback" role="status">@Model.Message</p> }
+<div class="workspace-records page-enter">
+<section class="panel workspace-form"><h2>Create an account</h2><p>Customer users see only their own company's records. Staff roles work within this organization.</p>
+<form @onsubmit="Create" @onsubmit:preventDefault aria-busy="@Model.Busy">
+<fieldset class="form-fields" disabled="@(!InteractiveReady || Model.Busy)">
+<div class="form-grid">
+<div class="soul-field"><label for="user-name">Full name</label><input id="user-name" class="soul-input" @bind="Model.Input.DisplayName" @bind:event="oninput" required maxlength="200" autocomplete="name" /></div>
+<div class="soul-field"><label for="user-email">Email</label><input id="user-email" class="soul-input" @bind="Model.Input.Email" @bind:event="oninput" type="email" required maxlength="254" autocomplete="off" /></div>
+<SoulDropdown Id="user-role" Label="Access role" Value="@Model.Input.Role" ValueChanged="ChangeRole" Options="Roles" />
+@if (Model.Input.Role == "Customer")
+{
+<SoulDropdown Id="user-customer" Label="Customer company" Value="@CustomerLabel" ValueChanged="ChooseCustomer" Options="CustomerOptions" />
+}
+<div class="soul-field"><label for="user-password">Initial password</label><input id="user-password" class="soul-input" @bind="Model.Input.InitialPassword" @bind:event="oninput" type="password" required minlength="8" maxlength="1024" autocomplete="new-password" /><small>8+ characters with uppercase, lowercase, numbers and symbols. Share privately.</small></div>
+</div>
+<label class="checkbox-field"><input type="checkbox" @bind="Model.Input.EmailOwnershipVerified" required /> I have verified this person's identity and email ownership.</label>
+<button class="button primary" type="submit" disabled="@Model.Busy">@(Model.Busy ? "Saving…" : "Create account")</button>
+</fieldset></form></section>
+<section class="panel workspace-form"><h2>Workspace members</h2><p>Showing up to 100 members. Disabling access prevents their next workspace operation.</p>
+@if (Model.Users.Count == 0) { <p>No members to display.</p> }
+else { <div class="user-list">@foreach (var user in Model.Users) { <article class="user-row" @key="user.MembershipId"><div><strong>@user.DisplayName</strong><p>@user.Email</p><small>@user.Role · @(user.IsActive ? "Active" : "Disabled")</small></div>@if (user.Role != "Owner") { <button type="button" class="button secondary" disabled="@Model.Busy" @onclick="() => Model.ChangeAccessAsync(user)">@(user.IsActive ? "Disable access" : "Enable access")<span class="sr-only"> for @user.DisplayName</span></button> }</article> }</div> }
+</section>
+</div>
+}
+@code {
+ private UserAdministrationViewModel Model=default!;
+ private bool InteractiveReady;
+ protected override void OnAfterRender(bool firstRender){if(firstRender){InteractiveReady=true;StateHasChanged();}}
+ private static readonly string[] Roles=["Admin","Technical","Customer"];
+ private IReadOnlyList<string> CustomerOptions=>Model.Customers.Select(x=>$"{x.Name} · {x.Email}").ToArray();
+ private string CustomerLabel=>Model.Customers.Where(x=>x.Id==Model.Input.CustomerId).Select(x=>$"{x.Name} · {x.Email}").FirstOrDefault()??"Choose a customer";
+ protected override async Task OnInitializedAsync(){Model=new(Service,Workspace);await Model.LoadAsync();}
+ private void ChangeRole(string role){Model.Input.Role=role;Model.Input.CustomerId=null;}
+ private void ChooseCustomer(string label){Model.Input.CustomerId=Model.Customers.FirstOrDefault(x=>$"{x.Name} · {x.Email}"==label)?.Id;}
+ private Task Create()=>Model.CreateAsync();
+}

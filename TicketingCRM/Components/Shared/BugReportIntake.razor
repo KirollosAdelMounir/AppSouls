@@ -1,0 +1,56 @@
+@inject TicketingCRM.Domain.Support.Interfaces.ISupportReportService Reports
+@inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
+@inject NavigationManager Navigation
+@using TicketingCRM.ViewModels
+<div class="support-layout">
+<section class="panel report-intake">
+    <div class="panel-heading"><div><h2>Bug / Issue Report</h2><p>Tell your technical team what happened.</p></div></div>
+    <p class="report-preview-notice" role="note">Your verified account receives an acknowledgement email with a secure progress link. Do not include passwords or private license keys.</p>
+    <EditForm Model="Model" OnValidSubmit="Submit" OnInvalidSubmit="Invalid" FormName="report-preview">
+        <DataAnnotationsValidator />
+        <div @ref="Errors" tabindex="-1" class="report-errors"><ValidationSummary /></div>
+        <div class="control-grid">
+            <SoulDropdown Id="report-kind" Label="Report type" Options="Kinds" @bind-Value="Model.Kind" />
+            <div><SoulDropdown Id="report-product" Label="Software product" Options="ProductNames" @bind-Value="Model.Product" /><ValidationMessage For="() => Model.Product" /></div>
+            <div class="soul-field report-wide"><label for="report-title">Title</label><input id="report-title" class="soul-input" @bind="Model.Title" @bind:event="oninput" @bind:after="DraftChanged" maxlength="160" /><ValidationMessage For="() => Model.Title" /></div>
+            <div class="soul-field report-wide"><label for="report-description">Description</label><textarea id="report-description" class="soul-input" @bind="Model.Description" @bind:event="oninput" @bind:after="DraftChanged" maxlength="4000" rows="4"></textarea><ValidationMessage For="() => Model.Description" /></div>
+            <div class="soul-field"><label for="report-version">Application version</label><input id="report-version" class="soul-input" @bind="Model.Version" @bind:event="oninput" @bind:after="DraftChanged" maxlength="100" /><ValidationMessage For="() => Model.Version" /></div>
+            <div class="soul-field"><label for="report-environment">Environment</label><input id="report-environment" class="soul-input" @bind="Model.Environment" @bind:event="oninput" @bind:after="DraftChanged" maxlength="300" /><ValidationMessage For="() => Model.Environment" /></div>
+            <div class="soul-field report-wide"><label for="report-steps">Steps to reproduce @(Model.Kind == "Bug" ? "(required)" : "(optional)")</label><textarea id="report-steps" class="soul-input" @bind="Model.Steps" @bind:event="oninput" @bind:after="DraftChanged" maxlength="2000" rows="3"></textarea><ValidationMessage For="() => Model.Steps" /></div>
+            <div class="soul-field"><label for="report-expected">Expected result</label><textarea id="report-expected" class="soul-input" @bind="Model.Expected" @bind:event="oninput" @bind:after="DraftChanged" maxlength="1000" rows="3"></textarea><ValidationMessage For="() => Model.Expected" /></div>
+            <div class="soul-field"><label for="report-actual">Actual result</label><textarea id="report-actual" class="soul-input" @bind="Model.Actual" @bind:event="oninput" @bind:after="DraftChanged" maxlength="1000" rows="3"></textarea><ValidationMessage For="() => Model.Actual" /></div>
+        </div>
+        <div class="report-actions"><button type="submit" class="button primary" disabled="@Busy">@(Busy?"Submitting…":"Submit report")</button></div>
+        @if(Error is not null){<p role="alert" class="feedback">@Error</p>}
+    </EditForm>
+    @if (Reviewed)
+    {
+        <div class="report-review" role="status"><h3>Report submitted</h3><p>Your report has been saved and its acknowledgement email queued.</p></div>
+    }
+</section>
+<aside class="panel report-progress">
+    <h2>Your support journey</h2><p>Four progress stages, followed by final closure.</p>
+    <ol class="support-stages">
+        <li><span class="step-number">01</span><div><h3>Submitted a bug / issue</h3><p>Your report is recorded and a confirmation email is queued.</p></div></li>
+        <li><span class="step-number">02</span><div><h3>A technical member received it</h3><p>An assigned team member accepts your report.</p></div></li>
+        <li><span class="step-number">03</span><div><h3>Solution in progress</h3><p>The technical team is working on a solution.</p></div></li>
+        <li><span class="step-number">04</span><div><h3>Completed</h3><p>A resolution is provided for your review.</p></div></li>
+        <li><span class="step-number">05</span><div><h3>Closed</h3><p>The report is formally closed with a recorded reason.</p></div></li>
+    </ol>
+    <div class="report-email-note"><h3>Follow progress from your inbox</h3><p>Your confirmation email will include a report reference and a secure link to its current stage.</p></div>
+</aside>
+</div>
+@code {
+    private BugReportViewModel Model { get; } = new();
+    private static readonly string[] Kinds = ["Bug", "Issue"];
+    private ElementReference Errors;
+    private bool Reviewed;
+    private bool Busy; private string? Error; private Guid OperationId=Guid.NewGuid();
+    private IReadOnlyList<string> ProductNames=[];
+    protected override async Task OnInitializedAsync(){try{var data=await Workspace.GetAsync();ProductNames=data.Products.Select(x=>$"{x.Name} · {x.Id}").ToList();}catch{Error="Software list is unavailable.";}}
+    private async Task Submit(){if(Busy)return;Busy=true;Error=null;try{var product=Guid.Parse(Model.Product.Split('·').Last().Trim());var receipt=await Reports.SubmitAsync(new(OperationId,product,Model.Kind=="Bug"?TicketingCRM.Domain.Support.Models.SupportReportKind.Bug:TicketingCRM.Domain.Support.Models.SupportReportKind.Issue,Model.Title,Model.Description,Model.Steps,Model.Expected,Model.Actual,Model.Version,Model.Environment));Reviewed=true;Navigation.NavigateTo("/support/"+receipt.TicketId);}catch(ArgumentException e){Error=e.Message;}catch(UnauthorizedAccessException){Error="Your account cannot submit this report.";}catch{Error="Submission could not be confirmed. Retry with this draft; the operation ID prevents duplicates.";}finally{Busy=false;}}
+
+    private async Task Invalid() { Reviewed = false; await Errors.FocusAsync(); }
+    private void DraftChanged() => Reviewed = false;
+
+}

@@ -1,0 +1,26 @@
+@rendermode InteractiveServer
+@inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Service
+@attribute [Authorize]
+@page "/"
+@using TicketingCRM.ViewModels
+<PageTitle>Overview | App Souls</PageTitle>
+<div class="page-heading"><div><p class="eyebrow">YOUR WORKSPACE AT A GLANCE</p><h1>A clearer view of every relationship.</h1><p>From the first conversation to the next renewal.</p></div><a class="button primary" href="customers">Explore customers <span aria-hidden="true">→</span></a></div>
+@if (LoadError is not null) { <p class="feedback" role="alert">@LoadError</p> }
+<section class="metrics" aria-label="Workspace summary">
+@foreach (var metric in Model.Metrics)
+{
+    <a class="metric panel" href="@metric.Link" @key="metric.Title"><div class="metric-top"><span class="icon-tile"><AppIcon Name="@metric.Icon" /></span><span class="metric-arrow" aria-hidden="true">↗</span></div><h2>@metric.Title</h2><div class="metric-value">@Count(metric.Title)</div><p>@metric.Description</p></a>
+}
+</section>
+<div class="dashboard-grid">
+<section class="panel activity-panel"><div class="panel-heading"><div><h2>Customer activity</h2><p>The latest across your customer lifecycle.</p></div><a href="customers">View customers <span aria-hidden="true">→</span></a></div><div class="empty-state"><span class="empty-illustration"><AppIcon Name="customers" /></span><h3>Your relationships start here</h3><p>Bring customers, conversations and contracts together in one place.</p><a class="button secondary" href="customers">Open customer workspace</a></div><div class="panel-foot"><span>Conversations</span><span>Contracts</span><span>Continued support</span></div></section>
+<section class="panel getting-started"><div class="panel-heading"><div><h2>Build your workspace</h2><p>A thoughtful start. A connected workflow.</p></div></div><a class="setup-step" href="settings"><span class="step-number">01</span><div><h3>Set up your organization</h3><p>Establish your tenant and access policies.</p></div><span aria-hidden="true">→</span></a><a class="setup-step" href="products"><span class="step-number">02</span><div><h3>Define your software</h3><p>Organize products and licensing models.</p></div><span aria-hidden="true">→</span></a><a class="setup-step" href="licenses"><span class="step-number">03</span><div><h3>Connect the licensing journey</h3><p>Issue, activate and renew with confidence.</p></div><span aria-hidden="true">→</span></a><div class="setup-caption">Built around your customer lifecycle</div></section>
+</div>
+<section class="renewal-banner"><span class="icon-tile"><AppIcon Name="licenses" /></span><div><h2>Keep every renewal in view.</h2><p>One place for licenses, installations and the next chapter of your customer relationships.</p></div><a class="button secondary" href="licenses">Licensing workspace <span aria-hidden="true">→</span></a></section>
+@code {
+ private OverviewViewModel Model { get; } = new();
+ private TicketingCRM.Domain.Workspace.DTOs.WorkspaceSnapshot? Data;
+ private string? LoadError;
+ protected override async Task OnInitializedAsync(){try{Data=await Service.GetAsync();}catch{LoadError="Workspace data is unavailable. Check your access and server status.";}}
+ private string Count(string title)=>Data is null?"—":title switch{"Customers"=>Data.Customers.Count.ToString(),"Active contracts"=>Data.Contracts.Count(x=>x.Status=="Active").ToString(),_=>"—"};
+}

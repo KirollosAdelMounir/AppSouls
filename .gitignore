@@ -426,3 +426,49 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# App Souls local server and publishing exclusions
+# .NET build and test outputs
+**/bin/
+**/obj/
+**/TestResults/
+artifacts/
+*.binlog
+*.trx
+*.coverage
+*.coveragexml
+
+# Editor and machine-local state
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
+
+# Local dependencies and logs
+node_modules/
+*.log
+*.tmp
+
+# Server configuration, credentials, keys and recovery material
+.env
+.env.*
+!.env.example
+appsettings.json
+appsettings.*.json
+*.vault
+*.vault.*
+*.key
+*.pem
+*.pfx
+*.p12
+*.administrator.pending
+**/auth-keys/
+**/server-preset.json
+**/server-input.json
+**/owner-input.json
+**/postgres.password

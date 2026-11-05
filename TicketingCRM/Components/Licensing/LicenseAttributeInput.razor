@@ -1,0 +1,15 @@
+@using TicketingCRM.Domain.Licensing.Models
+@if(Field.Source!=LicenseValueSource.Manual){<div class="soul-field"><label>@Field.Label</label><p>Automatically uses @Field.Source from this customer's subscription.</p></div>}
+else if(Field.Type==LicenseFieldType.Boolean){<SoulDropdown Label="@Field.Label" Options="BooleanOptions" Value="@Value" ValueChanged="ValueChanged" />}
+else if(Field.Type==LicenseFieldType.UtcDateTime){<SoulDateTimePicker Label="@Field.Label" UseUtc="true" Value="DateValue" ValueChanged="DateChanged" />}
+else{<div class="soul-field"><label for="@ControlId">@Field.Label @(Field.IsRequired?"*":"")</label><input id="@ControlId" class="soul-input" value="@Value" @oninput="Changed" maxlength="4096" required="@Field.IsRequired" /><small>@Field.Type</small></div>}
+@code {
+ [Parameter]public LicenseFieldDefinition Field{get;set;}=default!;
+ [Parameter]public string Value{get;set;}="";
+ [Parameter]public EventCallback<string> ValueChanged{get;set;}
+ private static readonly string[] BooleanOptions=["true","false"];
+ private string ControlId=>"license-value-"+Field.AttributeId;
+ private DateTime? DateValue=>DateTime.TryParse(Value,System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.RoundtripKind,out var date)?date:null;
+ private Task Changed(ChangeEventArgs e)=>ValueChanged.InvokeAsync(e.Value?.ToString()??"");
+ private Task DateChanged(DateTime? value)=>ValueChanged.InvokeAsync(value is null?"":DateTime.SpecifyKind(value.Value,DateTimeKind.Utc).ToString("O"));
+}

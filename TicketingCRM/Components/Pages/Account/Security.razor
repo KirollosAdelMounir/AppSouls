@@ -1,0 +1,43 @@
+@page "/account/security"
+@layout AccountLayout
+@attribute [Authorize]
+@attribute [ExcludeFromInteractiveRouting]
+@using Microsoft.AspNetCore.Identity
+@using TicketingCRM.DataConnection.Identity
+@inject UserManager<ApplicationUser> Users
+
+<PageTitle>Account security | App Souls</PageTitle>
+<section class="panel account-panel page-enter">
+    <p class="eyebrow">YOUR ACCOUNT</p><h1>Two-step verification</h1>
+    @if (Enabled)
+    {
+        <p>Your authenticator is enabled. Sign-in requires your password and a current authenticator code.</p>
+        <h2>Replace recovery codes</h2><p>Generate a fresh set if your saved codes may have been exposed. This invalidates all previous recovery codes.</p>
+        <form method="post" action="/account/mfa/recovery-codes" data-enhance="false">
+            <AntiforgeryToken />
+            <div class="soul-field"><label for="password">Current password</label><input id="password" class="soul-input" type="password" name="Password" required maxlength="1024" autocomplete="current-password" /></div>
+            <div class="soul-field"><label for="code">Authenticator code</label><input id="code" class="soul-input" name="Code" required maxlength="12" inputmode="numeric" autocomplete="one-time-code" /></div>
+            <button class="button primary" type="submit">Generate recovery codes</button>
+        </form>
+    }
+    else
+    {
+        <p>Two-step verification is optional. You can keep using your email and password. If you choose to enable it, protect your workspace with a time-based authenticator app. You will receive recovery codes after confirming your first code.</p>
+        <form method="post" action="/account/mfa/begin" data-enhance="false">
+            <AntiforgeryToken />
+            <div class="soul-field"><label for="password">Current password</label><input id="password" class="soul-input" type="password" name="Password" required maxlength="1024" autocomplete="current-password" /></div>
+            <button class="button primary" type="submit">Set up authenticator</button>
+        </form>
+    }
+    <p><a href="/">Return to workspace</a></p>
+</section>
+@code {
+    [CascadingParameter] public HttpContext HttpContext { get; set; } = default!;
+    private bool Enabled;
+    protected override async Task OnInitializedAsync()
+    {
+        HttpContext.Response.Headers.CacheControl = "no-store, private";
+        var user = await Users.GetUserAsync(HttpContext.User);
+        Enabled = user is not null && await Users.GetTwoFactorEnabledAsync(user);
+    }
+}

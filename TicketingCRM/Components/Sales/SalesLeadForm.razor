@@ -1,0 +1,20 @@
+@using TicketingCRM.ViewModels
+<section class="panel workspace-form page-enter"><h2>Add a lead</h2><p>Start with a person and company. Qualify the lead before creating a customer from it.</p>
+<form @onsubmit="OnCreate" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@Disabled">
+<div class="form-grid">
+<div class="soul-field"><label for="lead-contact">Contact name</label><input id="lead-contact" class="soul-input" @bind="Model.Lead.ContactName" @bind:event="oninput" required maxlength="160" autocomplete="name" /></div>
+<div class="soul-field"><label for="lead-company">Company</label><input id="lead-company" class="soul-input" @bind="Model.Lead.CompanyName" @bind:event="oninput" required maxlength="160" autocomplete="organization" /></div>
+<div class="soul-field"><label for="lead-email">Contact email</label><input id="lead-email" class="soul-input" type="email" @bind="Model.Lead.Email" @bind:event="oninput" required maxlength="254" autocomplete="email" /></div>
+<div class="soul-field"><label for="lead-phone">Phone (optional)</label><input id="lead-phone" class="soul-input" type="tel" @bind="Model.Lead.Phone" @bind:event="oninput" maxlength="50" autocomplete="tel" /></div>
+<SoulDropdown Id="lead-owner" Label="Lead owner" Value="@Model.OwnerLabel(Model.Lead.OwnerUserId)" ValueChanged="SetOwner" Options="Model.OwnerOptions" />
+<div class="soul-field"><label for="lead-source">Source (optional)</label><input id="lead-source" class="soul-input" @bind="Model.Lead.Source" @bind:event="oninput" maxlength="100" placeholder="Referral, website, event…" /></div>
+<SoulDateTimePicker UseUtc="true" Id="lead-followup" Label="Lead follow-up UTC (optional)" @bind-Value="Model.Lead.FollowUp" />
+</div><div class="soul-field"><label for="lead-notes">Notes (optional)</label><textarea id="lead-notes" class="soul-input" @bind="Model.Lead.Notes" @bind:event="oninput" maxlength="4000" rows="3"></textarea></div>
+<button class="button primary" type="submit">@(Model.Busy ? "Saving…" : "Add lead")</button>
+</fieldset></form></section>
+@code {
+ [Parameter] public SalesPipelineViewModel Model {get;set;}=default!;
+ [Parameter] public bool Disabled {get;set;}
+ [Parameter] public EventCallback OnCreate {get;set;}
+ private void SetOwner(string label)=>Model.Lead.OwnerUserId=Model.OwnerId(label);
+}

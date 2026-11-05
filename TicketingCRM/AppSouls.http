@@ -1,0 +1,118 @@
+@baseUrl = https://localhost:7176
+# Sign in via /account/login first. Cookie-changing POST requests require
+# the session antiforgery cookie plus RequestVerificationToken obtained from a rendered form.
+# Do not put real passwords, cookies, tokens or private keys in this file.
+GET {{baseUrl}}/api/workspace/
+
+### Customer creation (authenticated staff and antiforgery required)
+POST {{baseUrl}}/api/workspace/customers
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"name":"Customer company","email":"contact@example.test","companyNumber":""}
+
+### Catalog
+POST {{baseUrl}}/api/workspace/products
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"name":"Enterprise suite","code":"SUITE","licenseExtension":".soulslic"}
+
+### Contracts
+POST {{baseUrl}}/api/workspace/contracts
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"customerId":"{{customerId}}","reference":"CONTRACT-001","startsAtUtc":"2026-11-02T00:00:00Z","endsAtUtc":null}
+
+### Activate
+POST {{baseUrl}}/api/workspace/contracts/{{contractId}}/activate
+RequestVerificationToken: {{antiforgeryToken}}
+
+### Entitlement
+POST {{baseUrl}}/api/workspace/entitlements
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"contractId":"{{contractId}}","productId":"{{productId}}","installationLimit":1,"expiresAtUtc":null}
+
+### Support inbox
+GET {{baseUrl}}/api/support/
+
+### Progress
+GET {{baseUrl}}/api/support/{{ticketId}}
+
+### Submit a bug (authenticated entitled customer)
+POST {{baseUrl}}/api/support/
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"operationId":"{{operationId}}","productId":"{{productId}}","kind":"Bug","title":"Export fails","description":"The report export does not finish.","stepsToReproduce":"Open Reports and choose Export.","expectedResult":"A file downloads.","actualResult":"No file downloads.","applicationVersion":"1.0","environment":"Desktop"}
+
+### Advance a support stage (authorized technical member)
+POST {{baseUrl}}/api/support/stage
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"ticketId":"{{ticketId}}","operationId":"{{operationId}}","expectedVersion":"{{version}}","stage":"ReceivedByTechnicalMember","assignedTechnicalMemberId":"{{userId}}","customerVisibleMessage":"A technical member received your report.","resolution":null,"closureReason":null}
+
+### Licensing workspace
+GET {{baseUrl}}/api/licensing/
+
+### Schema publication
+POST {{baseUrl}}/api/licensing/schemas
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"productId":"{{productId}}","name":"Suite license","extension":".soulslic","fields":[{"attributeId":"edition","label":"Edition","type":0,"isRequired":true,"allowsNull":false}]}
+
+### Enroll an installation
+POST {{baseUrl}}/api/licensing/installations
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"operationId":"{{operationId}}","entitlementId":"{{entitlementId}}","name":"Application server","publicKeyPem":"{{installationPublicPem}}"}
+
+### Issue or renew
+POST {{baseUrl}}/api/licensing/issue
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"operationId":"{{operationId}}","installationId":"{{installationId}}","schemaRevisionId":"{{schemaId}}","customValuesJson":"{\"edition\":\"Enterprise\"}"}
+
+### Model exports and manual offline download
+GET {{baseUrl}}/api/licensing/schemas/{{schemaId}}/export
+
+### Artifact
+GET {{baseUrl}}/api/licensing/revisions/{{revisionId}}/download
+
+### Automatic renewal polling (installation bearer credential, no customer cookie required)
+GET {{baseUrl}}/api/licensing/latest?currentRevision=1
+Authorization: Bearer {{installationCredential}}
+
+### Paginated sales pipeline (Owner/Admin)
+GET {{baseUrl}}/api/sales?page=1&pageSize=20
+
+### New lead (a new operation ID per logical command; preserve it on retries)
+POST {{baseUrl}}/api/sales/leads
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"operationId":"{{operationId}}","contactName":"Prospect contact","companyName":"Prospect company","email":"prospect@example.test","phone":"","source":"Referral","notes":"","ownerUserId":"{{ownerUserId}}","followUpAtUtc":null}
+
+### Qualify lead
+POST {{baseUrl}}/api/sales/leads/stage
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"operationId":"{{stageOperationId}}","leadId":"{{leadId}}","expectedVersion":"{{version}}","stage":"Qualified","reason":"Requirements reviewed"}
+
+### Atomically convert a qualified lead to a new customer and opportunity
+POST {{baseUrl}}/api/sales/leads/convert
+Content-Type: application/json
+RequestVerificationToken: {{antiforgeryToken}}
+
+{"operationId":"{{conversionOperationId}}","leadId":"{{leadId}}","expectedVersion":"{{version}}","opportunityTitle":"Suite opportunity","ownerUserId":"{{ownerUserId}}","expectedValue":1250.50,"currency":"USD","followUpAtUtc":null}
+
+### Lead history
+GET {{baseUrl}}/api/sales/leads/{{leadId}}/history

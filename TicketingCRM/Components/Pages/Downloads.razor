@@ -1,0 +1,6 @@
+@page "/downloads"
+@attribute [Authorize]
+@using TicketingCRM.Components.Delivery
+<PageTitle>Software downloads | App Souls</PageTitle>
+<div class="page-heading"><div><p class="eyebrow">PRODUCT DELIVERY</p><h1>Software downloads</h1><p>Installations and updates for subscribed applications.</p></div><a class="button secondary" href="/licenses">Your licenses</a></div>
+<ProductReleasesWorkspace @rendermode="InteractiveServer" />

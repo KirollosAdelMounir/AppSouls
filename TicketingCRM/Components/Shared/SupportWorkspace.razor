@@ -1,0 +1,15 @@
+@using TicketingCRM.ViewModels
+@using TicketingCRM.Domain.Support.DTOs
+@inject TicketingCRM.Domain.Support.Interfaces.ISupportInboxService Inbox
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
+<section class="panel workspace-form"><h2>Support reports</h2><p>Showing your latest 100 authorized reports.</p>
+<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
+@if(Model.HasError){}
+else if(Model.Reports is null){<p>Loading reports…</p>}
+else if(Model.Reports.Count==0){<p>No reports yet.</p>}
+else{<div class="table-scroll"><table class="data-table"><thead><tr><th>Reference</th><th>Title</th><th>Stage</th></tr></thead><tbody>@foreach(var report in Model.Reports){<tr @key="report.TicketId"><td><a href="@($"/support/{report.TicketId}")">@report.Reference</a></td><td>@report.Title</td><td>@SupportStageLabel.Name(report.Stage)</td></tr>}</tbody></table></div>}</section>
+@if(Actor.CustomerId is not null){<div class="report-create"><BugReportIntake /></div>}
+@code {
+ private SupportInboxViewModel Model=null!;
+ protected override async Task OnInitializedAsync(){Model=new(Inbox);await Model.LoadAsync();}
+}

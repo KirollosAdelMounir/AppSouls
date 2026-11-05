@@ -1,0 +1,41 @@
+@using TicketingCRM.Domain.Administration.DTOs
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<section class="panel workspace-form page-enter"><p class="eyebrow">STEP 2 OF 2</p><h2>Connect &amp; activate</h2><p>Your administrator is prepared in a protected temporary file. It will be seeded as soon as database migration succeeds.</p>
+<form @ref="SetupForm" method="post" action="/setup/migrate" data-enhance="false"><AntiforgeryToken /><fieldset class="form-fields" disabled="@(!Ready)">
+<input type="hidden" name="DatabaseProvider" value="@Provider" />
+<h3>Database connection</h3><div class="form-grid setup-database-grid">
+<SoulDropdown Id="setup-database-provider" Label="Database provider" Value="@Provider" ValueChanged="ChangeProvider" Options="Providers" />
+<div class="soul-field"><label for="setup-db-server">Server</label><input id="setup-db-server" class="soul-input" name="DatabaseServer" @bind="Server" @bind:event="oninput" required maxlength="253" autocomplete="off" placeholder="localhost or database.example.com" /></div>
+<div class="soul-field"><label for="setup-db-port">Port</label><input id="setup-db-port" class="soul-input" type="number" name="DatabasePort" @bind="Port" @bind:event="oninput" required min="1" max="65535" /></div>
+<div class="soul-field"><label for="setup-db-catalog">Database / catalog name</label><input id="setup-db-catalog" class="soul-input" name="DatabaseCatalog" @bind="Catalog" @bind:event="oninput" required maxlength="128" autocomplete="off" /></div>
+<div class="soul-field"><label for="setup-db-user">Database username</label><input id="setup-db-user" class="soul-input" name="DatabaseUserName" @bind="UserName" @bind:event="oninput" required maxlength="256" autocomplete="off" /></div>
+<div class="soul-field"><label for="setup-db-password">Database password</label><input id="setup-db-password" class="soul-input" type="password" name="DatabasePassword" maxlength="8192" autocomplete="new-password" required="@(!CanKeepPassword)" /><small>@(CanKeepPassword?"A password is already prepared for this exact connection. Leave blank to keep it.":"Enter the password for this database user.")</small></div>
+</div><label class="checkbox-field"><input type="checkbox" name="DatabaseUseTls" value="true" @bind="UseTls" /> Require TLS for the database connection</label><input type="hidden" name="DatabaseUseTls" value="false" /><p class="setup-consent">Remote servers require TLS. A local development server can connect without TLS. App Souls constructs and protects the connection string for you.</p>
+<div class="setup-connection-actions"><button type="button" class="button secondary" data-setup-check="database">Test database connection</button><p role="status" aria-live="polite" data-setup-result="database"></p></div>
+<div class="soul-field"><label for="setup-public-url">Public HTTPS address</label><input id="setup-public-url" class="soul-input" type="url" name="PublicBaseUrl" value="@State.PublicBaseUrl" required maxlength="2048" /><small>Use an HTTPS address, for example https://crm.example.com. Used for authenticated support links and integrations.</small></div>
+<h3>Email (optional)</h3><p>You can configure email later in server settings. Support acknowledgements stay queued until email is enabled.</p>
+<label class="checkbox-field"><input type="checkbox" name="EmailEnabled" value="true" /> Enable SMTP email with TLS</label>
+<div class="form-grid"><div class="soul-field"><label for="setup-smtp-host">SMTP host</label><input id="setup-smtp-host" class="soul-input" name="EmailHost" maxlength="254" /></div>
+<div class="soul-field"><label for="setup-smtp-port">SMTP port</label><input id="setup-smtp-port" class="soul-input" type="number" name="EmailPort" min="1" max="65535" value="587" required /></div>
+<div class="soul-field"><label for="setup-sender">Sender email</label><input id="setup-sender" class="soul-input" type="email" name="SenderAddress" maxlength="254" /></div>
+<div class="soul-field"><label for="setup-email-user">SMTP username</label><input id="setup-email-user" class="soul-input" name="EmailUserName" maxlength="320" autocomplete="off" /></div>
+<div class="soul-field"><label for="setup-email-password">SMTP password</label><input id="setup-email-password" class="soul-input" type="password" name="EmailPassword" maxlength="8192" autocomplete="new-password" /></div></div>
+<div class="setup-connection-actions"><button type="button" class="button secondary" data-setup-check="email">Test email connection</button><p role="status" aria-live="polite" data-setup-result="email"></p><small>Checks TLS and SMTP authentication without sending an email.</small></div>
+<p role="alert" data-setup-result="migration" tabindex="-1"></p>
+<label class="checkbox-field"><input type="checkbox" name="ConfirmMigration" value="true" required /> Apply the database migrations, seed my prepared administrator and activate App Souls.</label>
+<p class="setup-consent">Use a fresh database for first-time setup. Existing accounts are never replaced by this process.</p>
+<button class="button primary" type="submit">Migrate database &amp; activate</button>
+</fieldset></form></section>
+@code {
+ [Parameter] public ServerSetupState State {get;set;}=default!;
+ private ElementReference SetupForm;private SetupConnectionInterop? Interop;
+ private string Provider="PostgreSql",Server="",Catalog="",UserName="";private int Port=5432;private bool Ready,UseTls=true;
+ private bool CanKeepPassword=>State.Database is {PasswordConfigured:true} saved&&Provider==State.DatabaseProvider&&Server.Trim().Equals(saved.Server,StringComparison.OrdinalIgnoreCase)&&Port==saved.Port&&Catalog.Trim()==saved.Catalog&&UserName.Trim()==saved.UserName&&UseTls==saved.UseTls;
+ private void ChangeProvider(string value){Provider=value;Port=value=="SqlServer"?1433:5432;}
+
+ private static readonly string[] Providers=["PostgreSql","SqlServer"];
+ protected override void OnInitialized(){Provider=State.DatabaseProvider;if(State.Database is { } value){Server=value.Server;Port=value.Port;Catalog=value.Catalog;UserName=value.UserName;UseTls=value.UseTls;}else Port=Provider=="SqlServer"?1433:5432;}
+ protected override async Task OnAfterRenderAsync(bool firstRender){if(firstRender){Interop=new(JS);await Interop.InitializeAsync(SetupForm);Ready=true;StateHasChanged();}}
+ public async ValueTask DisposeAsync(){if(Interop is not null)await Interop.DisposeAsync();}
+}

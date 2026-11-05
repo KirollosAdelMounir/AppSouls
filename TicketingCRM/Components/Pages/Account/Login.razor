@@ -1,0 +1,23 @@
+@page "/account/login"
+@layout AccountLayout
+@attribute [AllowAnonymous]
+@inject TicketingCRM.Domain.Administration.Interfaces.IInitialAdministratorService SetupService
+<PageTitle>Sign in | App Souls</PageTitle>
+<section class="panel account-panel page-enter"><p class="eyebrow">YOUR CUSTOMER WORKSPACE</p><h1>Welcome to App Souls</h1><p>Sign in to manage your customer relationships and software access.</p>
+@if (!string.IsNullOrEmpty(Error)) { <p role="alert" class="report-preview-notice">Sign-in could not be completed. Check your email, password and account access.</p> }
+@if (Configured) { <p role="status" class="feedback">Your administrator account is ready. Sign in to create customers and users.</p> }
+<form method="post" action="/account/sign-in" data-enhance="false">
+<AntiforgeryToken /><input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+<div class="soul-field"><label for="email">Email</label><input id="email" class="soul-input" type="email" name="Email" required maxlength="254" autocomplete="username" /></div>
+<div class="soul-field"><label for="password">Password</label><input id="password" class="soul-input" type="password" name="Password" required maxlength="1024" autocomplete="current-password" /></div>
+<button class="button primary" type="submit">Sign in</button>
+</form>
+@if (SetupAvailable) { <p><a href="/setup">Create the first administrator</a></p> }
+</section>
+@code {
+ private bool SetupAvailable;
+ protected override async Task OnInitializedAsync(){try{SetupAvailable=await SetupService.IsAvailableAsync();}catch{}}
+ [SupplyParameterFromQuery] public bool Configured {get;set;}
+ [SupplyParameterFromQuery] public string? Error {get;set;}
+ [SupplyParameterFromQuery] public string ReturnUrl {get;set;}="/";
+}

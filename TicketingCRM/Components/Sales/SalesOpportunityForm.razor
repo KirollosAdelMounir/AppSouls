@@ -1,0 +1,29 @@
+@using TicketingCRM.ViewModels
+<section class="panel workspace-form page-enter"><h2>@(Model.Converting is null ? "Add an opportunity" : "Convert qualified lead")</h2>
+@if(Model.Converting is { } lead){<p><strong>@lead.CompanyName</strong> will become a new customer, with an opportunity linked to this lead.</p>}
+else{<p>Connect a potential sale to an existing customer.</p>}
+<form @onsubmit="OnCreate" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@Disabled"><div class="form-grid">
+<div class="soul-field"><label for="opportunity-title">Opportunity title</label><input @ref="TitleInput" id="opportunity-title" class="soul-input" @bind="Model.Opportunity.Title" @bind:event="oninput" required maxlength="200" /></div>
+@if(Model.Converting is null){<SoulDropdown Id="opportunity-customer" Label="Customer company" Value="@Model.CustomerLabel" ValueChanged="Model.ChooseCustomer" Options="Model.CustomerOptions" />}
+<SoulDropdown Id="opportunity-owner" Label="Opportunity owner" Value="@Model.OwnerLabel(Model.Opportunity.OwnerUserId)" ValueChanged="SetOwner" Options="Model.OwnerOptions" />
+<div class="soul-field"><label for="opportunity-value">Expected value</label><input id="opportunity-value" class="soul-input" type="number" min="0" max="999999999999.99" step="0.01" @bind="Model.Opportunity.Value" @bind:event="oninput" required /></div>
+<SoulDropdown Id="opportunity-currency" Label="Currency" @bind-Value="Model.Opportunity.Currency" Options="Currencies" />
+<SoulDateTimePicker UseUtc="true" Id="opportunity-followup" Label="Opportunity follow-up UTC (optional)" @bind-Value="Model.Opportunity.FollowUp" />
+</div><div class="sales-actions"><button class="button primary" type="submit">@(Model.Busy ? "Saving…" : Model.Converting is null ? "Add opportunity" : "Create customer & opportunity")</button>
+@if(Model.Converting is not null){<button type="button" class="button secondary" @onclick="OnCancel">Cancel conversion</button>}</div>
+</fieldset></form></section>
+@code {
+ [Parameter] public SalesPipelineViewModel Model {get;set;}=default!;
+ [Parameter] public bool Disabled {get;set;}
+ [Parameter] public EventCallback OnCreate {get;set;}
+ [Parameter] public EventCallback OnCancel {get;set;}
+ private ElementReference TitleInput;
+ private Guid? FocusedLead;
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  if(Model.Converting is { } lead && FocusedLead!=lead.Id){FocusedLead=lead.Id;await TitleInput.FocusAsync();}
+  if(Model.Converting is null)FocusedLead=null;
+ }
+ private static readonly string[] Currencies=["USD","EUR","GBP","EGP","SAR","AED"];
+ private void SetOwner(string label)=>Model.Opportunity.OwnerUserId=Model.OwnerId(label);
+}
