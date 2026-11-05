@@ -37,9 +37,9 @@ else
     }
     <section class="panel report-intake"><h2>Ready licenses</h2>
         @if(Model.Snapshot.Licenses.Count==0){<p>No licenses have been issued for your accessible installations.</p>}
-        else{<ul class="license-field-list">@foreach(var license in Model.Snapshot.Licenses){<li @key="license.Id"><span>Revision @license.Revision · @license.IssuedAtUtc.ToString("u") · @(Model.Snapshot.Installations.FirstOrDefault(x=>x.Id==license.InstallationId)?.Name??"Installation")</span><a class="button secondary" href="@($"/api/licensing/revisions/{license.Id}/download")" data-enhance-nav="false">Download @license.Extension</a></li>}</ul>}
+        else{<ul class="license-field-list">@foreach(var license in Model.Snapshot.Licenses){<li @key="license.Id"><span>Revision @license.Revision · @license.IssuedAtUtc.ToString("u") · @(Model.Snapshot.Installations.FirstOrDefault(x=>x.Id==license.InstallationId)?.Name??"Installation")</span><a class="button secondary" href="@($"/api/licensing/revisions/{license.Id}/download")" data-enhance-nav="false" data-transfer-download data-transfer-filename="@($"license{license.Extension}")">Download @license.Extension</a></li>}</ul>}
     </section>
-    @if(Model.Snapshot.CanManage){<section class="panel report-intake"><h2>Published model exports</h2><ul class="license-field-list">@foreach(var schema in Model.Snapshot.Schemas){<li @key="schema.Id"><span>@schema.Name · revision @schema.Revision · @schema.Extension</span><a class="button secondary" href="@($"/api/licensing/schemas/{schema.Id}/export")" data-enhance-nav="false">Download four language models</a></li>}</ul></section>}
+    @if(Model.Snapshot.CanManage){<section class="panel report-intake"><h2>Published model exports</h2><ul class="license-field-list">@foreach(var schema in Model.Snapshot.Schemas){<li @key="schema.Id"><span>@schema.Name · revision @schema.Revision · @schema.Extension</span><a class="button secondary" href="@($"/api/licensing/schemas/{schema.Id}/export")" data-enhance-nav="false" data-transfer-download data-transfer-filename="AppSouls-models.zip">Download four language models</a></li>}</ul></section>}
 </div>
 }
 @code {

@@ -1,14 +1,51 @@
+@inject IJSRuntime JS
 @using TicketingCRM.ViewModels
 @inject TicketingCRM.Domain.Delivery.Interfaces.IProductReleaseService Releases
 @inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
 <OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
 @if(Model.Data is {} data){
-@if(data.CanManage){<section class="panel workspace-form"><h2>Upload an installation</h2><p>Uploads remain quarantined until a local malware scan succeeds. Published versions are immutable; use a new version for changes.</p><div class="form-grid"><SoulDropdown Label="Product" Options="Model.Products" @bind-Value="Model.Product" /><div class="soul-field"><label for="release-version">Version</label><input id="release-version" class="soul-input" @bind="Model.Version" maxlength="80" placeholder="1.0.0" /></div><SoulDropdown Label="Platform" Options="ProductReleasesViewModel.Platforms" @bind-Value="Model.Platform" /><div class="soul-field"><label for="release-notes">Release notes</label><textarea id="release-notes" class="soul-input" @bind="Model.Notes" maxlength="8000"></textarea></div><div class="soul-field"><label for="release-file">Installation package (up to 512 MB)</label><InputFile id="release-file" OnChange="ChooseFile" disabled="@Model.Busy" accept=".zip,.msi,.exe,.deb,.rpm,.pkg,.gz" /></div></div><p>@Filename</p><button class="button primary" @onclick="Upload" disabled="@(Model.Busy||File is null)">Upload to quarantine</button></section>}
-<section class="panel workspace-form"><h2>@(data.CanManage?"Product releases":"Your software downloads")</h2>@if(data.Releases.Count==0){<p>No installation packages are available for your current subscriptions.</p>}<ul class="license-field-list">@foreach(var release in data.Releases){<li @key="release.Id"><div><strong>@release.ProductName · @release.Version · @release.Platform</strong><p>@release.Notes</p><small>@release.Status · @release.Size bytes · SHA-256: @release.Sha256</small></div><div class="release-actions">@if(release.Status=="Published"){<a class="button primary" data-enhance-nav="false" href="@($"/api/product-releases/{release.Id}/download")">Download installation</a><a class="button secondary" href="@($"/api/product-releases/{release.Id}/manifest")">Signed manifest</a>}@if(data.CanManage){@if(release.Status=="Quarantined"){<button class="button primary" disabled="@Model.Busy" @onclick="()=>Model.PublishAsync(release.Id)">Scan &amp; publish</button>}@if(release.Status!="Revoked"){<button class="button secondary" disabled="@Model.Busy" @onclick="()=>Model.RevokeAsync(release.Id)">Revoke</button>}}</div></li>}</ul></section>
+@if(data.CanManage){<section class="panel workspace-form"><h2>Upload an installation</h2><p>Uploads remain quarantined until a local malware scan succeeds. Published versions are immutable; use a new version for changes.</p><div class="form-grid"><SoulDropdown Label="Product" Options="Model.Products" @bind-Value="Model.Product" /><div class="soul-field"><label for="release-version">Version</label><input id="release-version" class="soul-input" @bind="Model.Version" @bind:event="oninput" maxlength="80" placeholder="1.0.0" /></div><SoulDropdown Label="Platform" Options="ProductReleasesViewModel.Platforms" @bind-Value="Model.Platform" /><div class="soul-field"><label for="release-notes">Release notes</label><textarea id="release-notes" class="soul-input" @bind="Model.Notes" @bind:event="oninput" maxlength="8000"></textarea></div><div class="soul-field"><label for="release-file">Installation package (up to 512 MB)</label><InputFile @key="FileInputVersion" id="release-file" OnChange="ChooseFile" disabled="@(Model.Busy||Transferring)" accept=".zip,.msi,.exe,.deb,.rpm,.pkg,.gz" /></div></div><p>@Filename</p><button id="release-upload" class="button primary" @onclick="Upload" disabled="@(Model.Busy||Transferring||File is null)">Upload to quarantine</button></section>}
+<section class="panel workspace-form"><h2>@(data.CanManage?"Product releases":"Your software downloads")</h2>@if(data.Releases.Count==0){<p>No installation packages are available for your current subscriptions.</p>}<ul class="license-field-list">@foreach(var release in data.Releases){<li @key="release.Id"><div><strong>@release.ProductName · @release.Version · @release.Platform</strong><p>@release.Notes</p><small>@release.Status · @release.Size bytes · SHA-256: @release.Sha256</small></div><div class="release-actions">@if(release.Status=="Published"){<a class="button primary" data-enhance-nav="false" data-transfer-download data-transfer-filename="@release.Filename" href="@($"/api/product-releases/{release.Id}/download")">Download installation</a><a class="button secondary" href="@($"/api/product-releases/{release.Id}/manifest")">Signed manifest</a>}@if(data.CanManage){@if(release.Status=="Quarantined"){<button class="button primary" disabled="@Model.Busy" @onclick="()=>Model.PublishAsync(release.Id)">Scan &amp; publish</button>}@if(release.Status!="Revoked"){<button class="button secondary" disabled="@Model.Busy" @onclick="()=>Model.RevokeAsync(release.Id)">Revoke</button>}}</div></li>}</ul></section>
 }
 @code {
  private ProductReleasesViewModel Model=null!;private IBrowserFile? File;private string Filename=>File?.Name??"No file selected.";
  protected override async Task OnInitializedAsync(){Model=new(Releases,Workspace);await Model.LoadAsync();}
  private void ChooseFile(InputFileChangeEventArgs e)=>File=e.File;
- private async Task Upload(){if(File is not null){await using var stream=File.OpenReadStream(512L*1024*1024);await Model.UploadAsync(File.Name,stream);File=null;}}
+ private CancellationTokenSource? UploadCancellation;
+ private bool Transferring;
+ private int FileInputVersion;
+ [JSInvokable] public void CancelUpload()=>UploadCancellation?.Cancel();
+ private async Task Upload()
+ {
+  if(File is null||Transferring)return;
+  Transferring=true;var file=File;string? id=null;IJSObjectReference? transfers=null;
+  using var cancellation=new CancellationTokenSource();UploadCancellation=cancellation;
+  using var reference=DotNetObjectReference.Create(this);
+  var clock=System.Diagnostics.Stopwatch.StartNew();var last=TimeSpan.Zero;
+  try
+  {
+   transfers=await JS.InvokeAsync<IJSObjectReference>("import","./"+Assets["transfer-progress.js"]);
+   id=await JS.InvokeAsync<string>("appSoulsTransfers.begin","Upload",file.Name,file.Size,"release-upload");
+   await JS.InvokeVoidAsync("appSoulsTransfers.bindCancellation",id,reference);
+   await using var stream=new TicketingCRM.Core.FileProcessing.TransferReadStream(()=>file.OpenReadStream(512L*1024*1024,cancellation.Token),async (bytes,ct)=>
+   {
+    if(clock.Elapsed-last<TimeSpan.FromMilliseconds(250)&&bytes!=file.Size)return;
+    last=clock.Elapsed;
+    await JS.InvokeVoidAsync("appSoulsTransfers.update",ct,id,bytes,bytes==file.Size?"Upload received — validating and saving":"Uploading");
+   });
+   await Model.UploadAsync(file.Name,stream,cancellation.Token);
+   await JS.InvokeVoidAsync("appSoulsTransfers.finish",id,!Model.HasError,cancellation.IsCancellationRequested&&Model.HasError?"Upload cancelled. Check the release list before retrying.":Model.Message);
+   if(!Model.HasError){File=null;FileInputVersion++;}
+  }
+  catch(Exception error)when(error is IOException or JSException or InvalidOperationException or OperationCanceledException)
+  {
+   Model.UploadInterrupted();
+   if(id is not null)try{await JS.InvokeVoidAsync("appSoulsTransfers.finish",id,false,Model.Message);}catch(JSDisconnectedException){}
+  }
+  finally
+  {
+   UploadCancellation=null;Transferring=false;
+   if(transfers is not null)try{await transfers.DisposeAsync();}catch(JSDisconnectedException){}
+  }
+ }
 }

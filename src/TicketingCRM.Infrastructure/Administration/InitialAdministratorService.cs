@@ -1,3 +1,4 @@
+using TicketingCRM.Core.Security;
 using System.Data;
 using System.Net.Mail;
 using Microsoft.AspNetCore.Identity;
@@ -41,9 +42,17 @@ public sealed class InitialAdministratorService(ServerConfiguration? configurati
         var normalized = email.ToUpperInvariant();
         var user = new ApplicationUser
         {
-            Id = Guid.NewGuid(), DisplayName = name, Email = email, UserName = email, NormalizedEmail = normalized,
-            NormalizedUserName = normalized, EmailConfirmed = true, IsPlatformAdministrator = true,
-            LockoutEnabled = true, SecurityStamp = Guid.NewGuid().ToString("N"), ConcurrencyStamp = Guid.NewGuid().ToString("N")
+            Id = Guid.NewGuid(),
+            DisplayName = name,
+            Email = email,
+            UserName = email,
+            NormalizedEmail = normalized,
+            NormalizedUserName = normalized,
+            EmailConfirmed = true,
+            IsPlatformAdministrator = true,
+            LockoutEnabled = true,
+            SecurityStamp = Guid.NewGuid().ToString("N"),
+            ConcurrencyStamp = Guid.NewGuid().ToString("N")
         };
         user.PasswordHash = new PasswordHasher<ApplicationUser>().HashPassword(user, request.Password);
         db.Tenants.Add(new Tenant { Id = tenant, TenantId = tenant, Name = organization });

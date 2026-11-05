@@ -55,6 +55,14 @@ Every new or changed view MUST use the shared App Souls motion system: animated 
 
 Use the shared SoulDropdown for selection controls, including Appearance, and SoulDateTimePicker for date/time selection. Native time entry inside the shared picker is allowed. Do not introduce an unstyled native select as a substitute. Explicit Light/Dark preferences MUST persist across navigation and reloads; OS appearance changes apply only to System. Maintain a single appearance controller per document.
 
+## Mandatory transfer progress
+
+Every existing or new browser upload/download must use the shared transfer progress system, including product installers, licenses and model exports. Show the file, stage, transferred bytes, total size when known, rate, percentage when measurable, elapsed time and cancellation/failure/completion state. Scale sizes and rates automatically through B, KB, MB, GB, TB and larger units; retain exact byte counts. The current display uses decimal SI units (1000 bytes per KB).
+
+Use `TransferReadStream` for server-consumed streams and `transfer-progress.js` for browser downloads/HTTP uploads. Download links use `download` or `data-transfer-download` and a safe filename. Future features must integrate these shared paths rather than create another progress implementation. Keep buffering bounded; use streaming file/browser sinks for large downloads. Unknown totals and database-engine stages remain indeterminate, never a fabricated percentage. Receipt of upload bytes is separate from successful validation/persistence. Browser download handoff is separate from confirmation that a file was saved to disk.
+
+Database copy/switch/upgrade runs only after explicit maintenance confirmation, with application writes and outbox processing paused, compatible migration lineage checked, original keys retained and target data verified before changing the vault connection. PostgreSQL and SQL Server use their own migrations; cross-provider copies preserve identifiers and relationships and must fail without overwriting existing target data when conversion or constraints are incompatible.
+
 ## Bug and issue support tickets
 
 Support tickets MUST include Bug / Issue Reports. Preserve five statuses representing four progress stages plus final closure: Submitted → Received by a technical member → Solution in progress → Completed → Closed. Do not collapse Completed into Closed. Receipt requires an assigned technical member; record actor and UTC timestamp for every transition. Resolve tenant/customer ownership from authenticated membership. Public ticket references never authorize access.

@@ -11,6 +11,7 @@ using TicketingCRM.Domain.Tenancy.Interfaces;
 using TicketingCRM.Infrastructure.Administration;
 using Xunit;
 namespace TicketingCRM.Infrastructure.Tests;
+
 public sealed class InitialAdministratorServiceTests
 {
     private sealed record Scope(Guid TenantId) : ITenantContext;
@@ -24,7 +25,7 @@ public sealed class InitialAdministratorServiceTests
         await using (var command = new NpgsqlCommand($"CREATE DATABASE {database}", administration)) await command.ExecuteNonQueryAsync();
         builder.Database = database;
         var root = Path.Combine(Path.GetTempPath(), "appsouls-first-admin-" + Guid.NewGuid().ToString("N"));
-        var keyDirectory = Path.Combine(root, "key"); Directory.CreateDirectory(keyDirectory);
+        var keyDirectory = Path.Combine(root, "key"); TicketingCRM.Core.Security.PrivateFileSystem.PrepareDirectory(Path.Combine(keyDirectory, ".check"));
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(keyDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         try
         {

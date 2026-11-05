@@ -1,3 +1,4 @@
+using TicketingCRM.Core.Security;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -25,14 +26,12 @@ public sealed class FileConfigurationVault(VaultBootstrapOptions options)
 {
     private const int Limit = 1_048_576;
     private static readonly byte[] Header = Encoding.ASCII.GetBytes("APPSOULS-VAULT-1");
-    private const UnixFileMode FileModePrivate = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-    private const UnixFileMode DirectoryModePrivate = FileModePrivate | UnixFileMode.UserExecute;
 
     public async Task InitializeAsync(ServerConfiguration configuration, CancellationToken cancellationToken = default)
     {
         configuration.Validate();
-        PrepareDirectory(options.VaultPath);
-        PrepareDirectory(options.KeyPath);
+        PrivateFileSystem.PrepareDirectory(options.VaultPath);
+        PrivateFileSystem.PrepareDirectory(options.KeyPath);
         await using var gate = AcquireLock();
         if (File.Exists(options.VaultPath) || File.Exists(options.KeyPath))
             throw new InvalidOperationException("Vault or key already exists. Use explicit recovery; initialization will not replace it.");
@@ -47,19 +46,19 @@ public sealed class FileConfigurationVault(VaultBootstrapOptions options)
     }
 
     /// <summary>Explicit authorized recovery when the key was persisted but the first vault write was interrupted.</summary>
-    public async Task ResumeInitializationAsync(ServerConfiguration configuration,CancellationToken cancellationToken=default)
+    public async Task ResumeInitializationAsync(ServerConfiguration configuration, CancellationToken cancellationToken = default)
     {
-        configuration.Validate();PrepareDirectory(options.VaultPath);PrepareDirectory(options.KeyPath);
-        await using var gate=AcquireLock();
-        if(File.Exists(options.VaultPath))throw new InvalidOperationException("An existing vault cannot be replaced by initialization recovery.");
-        var key=await ReadKeyAsync(cancellationToken);
-        try{await AtomicWriteAsync(options.VaultPath,Encrypt(configuration,key),false,cancellationToken);}
-        finally{CryptographicOperations.ZeroMemory(key);}
+        configuration.Validate(); PrivateFileSystem.PrepareDirectory(options.VaultPath); PrivateFileSystem.PrepareDirectory(options.KeyPath);
+        await using var gate = AcquireLock();
+        if (File.Exists(options.VaultPath)) throw new InvalidOperationException("An existing vault cannot be replaced by initialization recovery.");
+        var key = await ReadKeyAsync(cancellationToken);
+        try { await AtomicWriteAsync(options.VaultPath, Encrypt(configuration, key), false, cancellationToken); }
+        finally { CryptographicOperations.ZeroMemory(key); }
     }
 
     public async Task<ServerConfiguration> LoadAsync(CancellationToken cancellationToken = default)
     {
-        CheckFile(options.VaultPath);
+        PrivateFileSystem.CheckFile(options.VaultPath);
         var key = await ReadKeyAsync(cancellationToken);
         try { return Decrypt(await ReadBoundedAsync(options.VaultPath, cancellationToken), key); }
         finally { CryptographicOperations.ZeroMemory(key); }
@@ -68,7 +67,7 @@ public sealed class FileConfigurationVault(VaultBootstrapOptions options)
     public async Task SaveAsync(ServerConfiguration configuration, CancellationToken cancellationToken = default)
     {
         configuration.Validate();
-        CheckFile(options.VaultPath);
+        PrivateFileSystem.CheckFile(options.VaultPath);
         await using var gate = AcquireLock();
         var key = await ReadKeyAsync(cancellationToken);
         try
@@ -84,15 +83,15 @@ public sealed class FileConfigurationVault(VaultBootstrapOptions options)
     {
         await LoadAsync(cancellationToken); // Validate before exporting; export contains ciphertext only.
         RequireSeparateRecoveryPath(destination);
-        PrepareDirectory(destination);
+        PrivateFileSystem.PrepareDirectory(destination);
         await AtomicWriteAsync(destination, await ReadBoundedAsync(options.VaultPath, cancellationToken), false, cancellationToken);
     }
 
     public async Task RestoreRecoveryAsync(string source, CancellationToken cancellationToken = default)
     {
         RequireSeparateRecoveryPath(source);
-        CheckFile(source);
-        PrepareDirectory(options.VaultPath);
+        PrivateFileSystem.CheckFile(source);
+        PrivateFileSystem.PrepareDirectory(options.VaultPath);
         await using var gate = AcquireLock();
         var key = await ReadKeyAsync(cancellationToken);
         try
@@ -148,7 +147,7 @@ public sealed class FileConfigurationVault(VaultBootstrapOptions options)
 
     private async Task<byte[]> ReadKeyAsync(CancellationToken cancellationToken)
     {
-        CheckFile(options.KeyPath);
+        PrivateFileSystem.CheckFile(options.KeyPath);
         var bytes = await ReadBoundedAsync(options.KeyPath, cancellationToken);
         if (bytes.Length == 32) return bytes;
         CryptographicOperations.ZeroMemory(bytes);
@@ -158,51 +157,10 @@ public sealed class FileConfigurationVault(VaultBootstrapOptions options)
     private FileStream AcquireLock()
     {
         var path = options.VaultPath + ".lock";
-        if (File.Exists(path)) CheckFile(path);
-        return OpenPrivate(path, FileMode.OpenOrCreate);
+        if (File.Exists(path)) PrivateFileSystem.CheckFile(path);
+        return PrivateFileSystem.Open(path, FileMode.OpenOrCreate);
     }
 
-    private static void EnsurePlatform()
-    {
-        if (OperatingSystem.IsWindows())
-            throw new PlatformNotSupportedException("The file-key vault requires a qualified Windows ACL or native key provider before Windows deployment.");
-    }
-
-    private static void CheckAncestors(string path)
-    {
-        EnsurePlatform();
-        for (DirectoryInfo? directory = new(Path.GetDirectoryName(path)!); directory is not null; directory = directory.Parent)
-            if (directory.Exists && (directory.Attributes & FileAttributes.ReparsePoint) != 0)
-                throw new InvalidOperationException("Vault locations cannot traverse symbolic links.");
-    }
-
-    private static void PrepareDirectory(string path)
-    {
-        if (OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows vault protection is not yet qualified.");
-        CheckAncestors(path);
-        var directory = Path.GetDirectoryName(path)!;
-        Directory.CreateDirectory(directory, DirectoryModePrivate);
-        if (File.GetUnixFileMode(directory) != DirectoryModePrivate)
-            throw new InvalidOperationException("Vault directories must permit access only to their owner (0700).");
-    }
-
-    private static void CheckFile(string path)
-    {
-        if (OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows vault protection is not yet qualified.");
-        CheckAncestors(path);
-        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 || File.GetUnixFileMode(path) != FileModePrivate)
-            throw new InvalidOperationException("Vault files must be regular owner-only files (0600), without symbolic links.");
-        var directory = Path.GetDirectoryName(path)!;
-        if (File.GetUnixFileMode(directory) != DirectoryModePrivate)
-            throw new InvalidOperationException("Vault directories must permit access only to their owner (0700).");
-    }
-
-    private static FileStream OpenPrivate(string path, FileMode mode)
-    {
-        if (OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows vault protection is not yet qualified.");
-        return new FileStream(path, new FileStreamOptions { Mode = mode, Access = FileAccess.ReadWrite, Share = FileShare.None,
-            Options = FileOptions.Asynchronous | FileOptions.WriteThrough, UnixCreateMode = FileModePrivate });
-    }
 
     private static async Task<byte[]> ReadBoundedAsync(string path, CancellationToken cancellationToken)
     {
@@ -215,7 +173,7 @@ public sealed class FileConfigurationVault(VaultBootstrapOptions options)
 
     private static async Task WriteNewAsync(string path, byte[] bytes, CancellationToken cancellationToken)
     {
-        await using var file = OpenPrivate(path, FileMode.CreateNew);
+        await using var file = PrivateFileSystem.Open(path, FileMode.CreateNew);
         await file.WriteAsync(bytes, cancellationToken);
         file.Flush(true);
     }

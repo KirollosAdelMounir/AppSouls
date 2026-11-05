@@ -21,19 +21,24 @@ public sealed class SalesPipelineViewModel(ISalesPipelineService service, IWorks
     public int Page { get; private set; } = 1;
     public LeadDraft Lead { get; private set; } = new() { OwnerUserId = actor.UserId };
     public OpportunityDraft Opportunity { get; private set; } = new() { OwnerUserId = actor.UserId };
-    public Guid? ActivityRecord{get;private set;}
-    public Guid ActivityVersion{get;private set;}
-    public bool ActivityOpportunity{get;private set;}
-    public string ActivityKind{get;set;}="Call";
-    public string ActivitySubject{get;set;}="";
-    public string ActivityNotes{get;set;}="";
-    public DateTime? ActivityFollowUp{get;set;}
-    private Guid ActivityOperation=Guid.NewGuid();
-    public static IReadOnlyList<string> ActivityKinds{get;}=["Call","Meeting","Email","Task","Note"];
-    public void BeginActivity(LeadDto record){ActivityRecord=record.Id;ActivityVersion=record.Version;ActivityOpportunity=false;ActivityFollowUp=record.FollowUpAtUtc?.UtcDateTime;ActivitySubject="";ActivityNotes="";ActivityOperation=Guid.NewGuid();}
-    public void BeginActivity(OpportunityDto record){ActivityRecord=record.Id;ActivityVersion=record.Version;ActivityOpportunity=true;ActivityFollowUp=record.FollowUpAtUtc?.UtcDateTime;ActivitySubject="";ActivityNotes="";ActivityOperation=Guid.NewGuid();}
-    public void CancelActivity()=>ActivityRecord=null;
-    public Task SaveActivityAsync()=>Run(async()=>{await service.RecordActivityAsync(new(ActivityOperation,ActivityRecord??Guid.Empty,ActivityOpportunity,ActivityVersion,ActivityKind,ActivitySubject,ActivityNotes,Utc(ActivityFollowUp)));ActivityRecord=null;await Refresh();Message="Sales activity recorded.";});
+    public Guid? ActivityRecord { get; private set; }
+    public Guid ActivityVersion { get; private set; }
+    public bool ActivityOpportunity { get; private set; }
+    public string ActivityKind { get; set; } = "Call";
+    public string ActivitySubject { get; set; } = "";
+    public string ActivityNotes { get; set; } = "";
+    public DateTime? ActivityFollowUp { get; set; }
+    private Guid ActivityOperation = Guid.NewGuid();
+    public static IReadOnlyList<string> ActivityKinds { get; } = ["Call", "Meeting", "Email", "Task", "Note"];
+    public void BeginActivity(LeadDto record) => BeginActivity(record.Id, record.Version, false, record.FollowUpAtUtc);
+    public void BeginActivity(OpportunityDto record) => BeginActivity(record.Id, record.Version, true, record.FollowUpAtUtc);
+    private void BeginActivity(Guid id, Guid version, bool opportunity, DateTimeOffset? followUp)
+    {
+        ActivityRecord = id; ActivityVersion = version; ActivityOpportunity = opportunity;
+        ActivityFollowUp = followUp?.UtcDateTime; ActivitySubject = ""; ActivityNotes = ""; ActivityOperation = Guid.NewGuid();
+    }
+    public void CancelActivity() => ActivityRecord = null;
+    public Task SaveActivityAsync() => Run(async () => { await service.RecordActivityAsync(new(ActivityOperation, ActivityRecord ?? Guid.Empty, ActivityOpportunity, ActivityVersion, ActivityKind, ActivitySubject, ActivityNotes, RecordChoice.Utc(ActivityFollowUp))); ActivityRecord = null; await Refresh(); Message = "Sales activity recorded."; });
     public LeadDto? Converting { get; private set; }
     public LeadDto? StageLead { get; private set; }
     public OpportunityDto? StageOpportunity { get; private set; }
@@ -43,11 +48,18 @@ public sealed class SalesPipelineViewModel(ISalesPipelineService service, IWorks
     public string StageTitle => StageLead?.CompanyName ?? StageOpportunity?.Title ?? "";
     public IReadOnlyList<string> StageChoices => StageLead is { } l ? l.Stage switch
     {
-        LeadStage.New => ["Qualified", "Disqualified"], LeadStage.Qualified => ["Disqualified"], LeadStage.Disqualified => ["New"], _ => []
+        LeadStage.New => ["Qualified", "Disqualified"],
+        LeadStage.Qualified => ["Disqualified"],
+        LeadStage.Disqualified => ["New"],
+        _ => []
     } : StageOpportunity?.Stage switch
     {
-        OpportunityStage.New => ["Qualified", "Lost"], OpportunityStage.Qualified => ["Proposal", "Lost"],
-        OpportunityStage.Proposal => ["Negotiation", "Lost"], OpportunityStage.Negotiation => ["Won", "Lost"], OpportunityStage.Lost => ["Qualified"], _ => []
+        OpportunityStage.New => ["Qualified", "Lost"],
+        OpportunityStage.Qualified => ["Proposal", "Lost"],
+        OpportunityStage.Proposal => ["Negotiation", "Lost"],
+        OpportunityStage.Negotiation => ["Won", "Lost"],
+        OpportunityStage.Lost => ["Qualified"],
+        _ => []
     };
     public bool More => Data is not null && Page * Data.PageSize < (Tab == "Leads" ? Data.LeadCount : Data.OpportunityCount);
     public IReadOnlyList<string> OwnerOptions => Data?.Owners.Select(OwnerLabel).ToArray() ?? [];
@@ -67,7 +79,7 @@ public sealed class SalesPipelineViewModel(ISalesPipelineService service, IWorks
     public Task NavigateAsync(int delta) => Run(async () => { Page = Math.Max(1, Page + delta); await Refresh(); });
     public Task CreateLeadAsync() => Run(async () =>
     {
-        await service.CreateLeadAsync(new(Lead.OperationId, Lead.ContactName, Lead.CompanyName, Lead.Email, Lead.Phone, Lead.Source, Lead.Notes, Lead.OwnerUserId, Utc(Lead.FollowUp)));
+        await service.CreateLeadAsync(new(Lead.OperationId, Lead.ContactName, Lead.CompanyName, Lead.Email, Lead.Phone, Lead.Source, Lead.Notes, Lead.OwnerUserId, RecordChoice.Utc(Lead.FollowUp)));
         Lead = new() { OwnerUserId = actor.UserId }; Page = 1; Message = "Lead added."; await Refresh();
     });
     public void BeginConversion(LeadDto lead)
@@ -80,12 +92,12 @@ public sealed class SalesPipelineViewModel(ISalesPipelineService service, IWorks
     {
         if (Converting is { } lead)
         {
-            await service.ConvertLeadAsync(new(Opportunity.OperationId, lead.Id, lead.Version, Opportunity.Title, Opportunity.OwnerUserId, Opportunity.Value, Opportunity.Currency, Utc(Opportunity.FollowUp)));
+            await service.ConvertLeadAsync(new(Opportunity.OperationId, lead.Id, lead.Version, Opportunity.Title, Opportunity.OwnerUserId, Opportunity.Value, Opportunity.Currency, RecordChoice.Utc(Opportunity.FollowUp)));
             Message = "Lead converted. Its customer and opportunity are ready.";
         }
         else
         {
-            await service.CreateOpportunityAsync(new(Opportunity.OperationId, Opportunity.Title, Opportunity.CustomerId ?? Guid.Empty, Opportunity.OwnerUserId, Opportunity.Value, Opportunity.Currency, Utc(Opportunity.FollowUp)));
+            await service.CreateOpportunityAsync(new(Opportunity.OperationId, Opportunity.Title, Opportunity.CustomerId ?? Guid.Empty, Opportunity.OwnerUserId, Opportunity.Value, Opportunity.Currency, RecordChoice.Utc(Opportunity.FollowUp)));
             Message = "Opportunity added.";
         }
         CancelConversion(); Tab = "Opportunities"; Page = 1; await Refresh();
@@ -110,7 +122,6 @@ public sealed class SalesPipelineViewModel(ISalesPipelineService service, IWorks
         CancelStage(); Message = "Stage updated."; await Refresh();
     });
     public Task ShowHistoryAsync(Guid id, bool opportunity, string title) => Run(async () => { History = await service.HistoryAsync(id, opportunity); HistoryTitle = title; });
-    private static DateTimeOffset? Utc(DateTime? value) => value is null ? null : new(DateTime.SpecifyKind(value.Value, DateTimeKind.Utc));
     private async Task Run(Func<Task> action, bool clearMessage = true)
     {
         if (Busy) return; Busy = true; Error = null; if (clearMessage) Message = null;

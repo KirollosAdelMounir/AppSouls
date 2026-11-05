@@ -1,3 +1,4 @@
+using TicketingCRM.Core.Security;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -69,10 +70,7 @@ public sealed class AccountController(UserManager<ApplicationUser> users, SignIn
     }
     private async Task<IActionResult> Complete(ApplicationUser user, SignInWorkspace workspace, string returnUrl, bool mfa)
     {
-        var claims = new List<Claim> { new("appsouls:tenant", workspace.TenantId.ToString()), new("appsouls:role", workspace.Role), new("appsouls:stamp", user.SecurityStamp ?? "") };
-        if (mfa) claims.Add(new("appsouls:mfa", "true"));
-        if (workspace.CustomerId is { } customer) claims.Add(new("appsouls:customer", customer.ToString()));
-        await signIn.SignInWithClaimsAsync(user, isPersistent: false, claims);
+        await signIn.SignInWithClaimsAsync(user, isPersistent: false, WorkspaceSessionClaims.Create(workspace, user.SecurityStamp ?? "", mfa));
         await HttpContext.SignOutAsync(PendingScheme);
         return LocalRedirect(returnUrl);
     }

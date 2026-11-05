@@ -58,7 +58,8 @@ public sealed class VaultXmlKeyDecryptor : IXmlDecryptor
             using var stream = new MemoryStream(plaintext, false);
             using var reader = System.Xml.XmlReader.Create(stream, new System.Xml.XmlReaderSettings
             {
-                DtdProcessing = System.Xml.DtdProcessing.Prohibit, XmlResolver = null,
+                DtdProcessing = System.Xml.DtdProcessing.Prohibit,
+                XmlResolver = null,
                 MaxCharactersInDocument = VaultXmlKeyMaterial.Limit
             });
             return XElement.Load(reader, LoadOptions.None);
@@ -79,15 +80,8 @@ internal static class VaultXmlKeyMaterial
     internal static readonly byte[] Context = Encoding.ASCII.GetBytes("AppSouls:AuthenticationKeyRing:AES256GCM:v1");
     internal static byte[] Read(VaultBootstrapOptions bootstrap)
     {
-        if (OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows key protection has not been qualified.");
         var path = bootstrap.KeyPath;
-        for (DirectoryInfo? directory = new(Path.GetDirectoryName(path)!); directory is not null; directory = directory.Parent)
-            if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
-                throw new InvalidOperationException("Authentication key protection cannot traverse symbolic links.");
-        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 ||
-            File.GetUnixFileMode(path) != (UnixFileMode.UserRead | UnixFileMode.UserWrite) ||
-            File.GetUnixFileMode(Path.GetDirectoryName(path)!) != (UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute))
-            throw new InvalidOperationException("The external key requires owner-only file and directory permissions.");
+        PrivateFileSystem.CheckFile(path);
         using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         if (file.Length != 32) throw new InvalidOperationException("The external protection key is invalid.");
         var master = new byte[32];

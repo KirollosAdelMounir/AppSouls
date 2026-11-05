@@ -1,3 +1,4 @@
+using TicketingCRM.Core.Security;
 using System.Net.Mail;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,7 @@ namespace TicketingCRM.Infrastructure.Administration;
 
 public sealed class UserAdministrationService(IWorkspaceSessionFactory sessions, ICurrentActor actor) : IUserAdministrationService
 {
-    private async Task AuthorizeAsync(IWorkspaceSession session,CancellationToken ct)=>await TicketingCRM.Infrastructure.Security.WorkspaceAccess.RequireAsync(session,actor,administrator:true,ct:ct);
+    private async Task AuthorizeAsync(IWorkspaceSession session, CancellationToken ct) => await TicketingCRM.Infrastructure.Security.WorkspaceAccess.RequireAsync(session, actor, administrator: true, ct: ct);
     public async Task<IReadOnlyList<ManagedUserDto>> ListAsync(CancellationToken cancellationToken = default)
     {
         await using var session = await sessions.OpenAsync(cancellationToken);
@@ -47,9 +48,16 @@ public sealed class UserAdministrationService(IWorkspaceSessionFactory sessions,
             throw new InvalidOperationException("This account cannot be created. Use a distinct email or the authorized membership provisioning procedure.");
         var user = new ApplicationUser
         {
-            Id = Guid.NewGuid(), UserName = email, NormalizedUserName = normalized, Email = email,
-            NormalizedEmail = normalized, DisplayName = name, EmailConfirmed = true, LockoutEnabled = true,
-            SecurityStamp = Guid.NewGuid().ToString("N"), ConcurrencyStamp = Guid.NewGuid().ToString("N")
+            Id = Guid.NewGuid(),
+            UserName = email,
+            NormalizedUserName = normalized,
+            Email = email,
+            NormalizedEmail = normalized,
+            DisplayName = name,
+            EmailConfirmed = true,
+            LockoutEnabled = true,
+            SecurityStamp = Guid.NewGuid().ToString("N"),
+            ConcurrencyStamp = Guid.NewGuid().ToString("N")
         };
         user.PasswordHash = new PasswordHasher<ApplicationUser>().HashPassword(user, request.InitialPassword);
         var member = new TenantMembership { TenantId = actor.TenantId, UserId = user.Id, Role = request.Role, CustomerId = request.CustomerId };
@@ -68,15 +76,5 @@ public sealed class UserAdministrationService(IWorkspaceSessionFactory sessions,
         if (member.Version != request.ExpectedVersion) throw new InvalidOperationException("The member changed. Refresh before trying again.");
         member.IsActive = request.IsActive;
         await session.CommitAsync(cancellationToken);
-    }
-}
-
-internal static class PasswordPolicy
-{
-    public static void Validate(string? password)
-    {
-        if (password is null || password.Length is < 8 or > 1024 || !password.Any(char.IsUpper) || !password.Any(char.IsLower) ||
-            !password.Any(char.IsDigit) || !password.Any(c => !char.IsLetterOrDigit(c)))
-            throw new ArgumentException("Use 8–1024 characters with uppercase, lowercase, numbers and symbols.");
     }
 }

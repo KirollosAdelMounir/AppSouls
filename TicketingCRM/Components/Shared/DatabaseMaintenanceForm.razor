@@ -1,0 +1,58 @@
+@using TicketingCRM.ViewModels
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<div @ref="Root">
+<form data-maintenance-form>
+    <AntiforgeryToken />
+    <fieldset class="form-fields" data-maintenance-fields disabled="@(!Ready)">
+        <SoulDropdown Id="maintenance-mode" Label="Operation" Value="@Mode" ValueChanged="value=>Mode=value" Options="Modes" />
+        <input type="hidden" name="Mode" value="@Mode" />
+        @if(Mode!="Upgrade") {
+        <SoulDropdown Id="maintenance-provider" Label="Target provider" Value="@Provider" ValueChanged="value=>Provider=value" Options="ServerConnectionViewModel.Providers" />
+        <input type="hidden" name="Provider" value="@Provider" />
+        <div class="soul-field"><label for="maintenance-connection">Target connection string</label><input id="maintenance-connection" class="soul-input" name="ConnectionString" type="password" required maxlength="8192" autocomplete="new-password" /><small>Kept in memory during the operation and saved to the encrypted vault only after successful verification. No credentials appear in progress details.</small></div>
+        }
+        <button type="button" class="button secondary" data-maintenance-inspect>Check target server &amp; schema</button>
+        <label class="checkbox-field"><input type="checkbox" name="ConfirmMaintenance" value="true" required /> I have a verified backup and have stopped every other App Souls instance and database writer. Enter maintenance mode, then create/copy or upgrade the selected catalog.</label>
+        <button type="submit" class="button primary">Apply database migration / transfer</button>
+    </fieldset>
+</form>
+<p role="status" aria-live="polite" data-maintenance-message></p>
+<section aria-labelledby="maintenance-stage" class="maintenance-progress">
+    <h2 id="maintenance-stage" data-maintenance-stage>Ready</h2>
+    <p data-maintenance-destination></p>
+    <progress max="100" value="0" aria-label="Overall database operation progress" data-maintenance-progress></progress>
+    <p data-maintenance-percent>Waiting for a confirmed operation</p>
+    <dl class="maintenance-metrics">
+        <div><dt>Current table</dt><dd data-maintenance-table>—</dd></div>
+        <div><dt>Records copied</dt><dd data-maintenance-rows>0 / 0</dd></div>
+        <div><dt>Copy speed</dt><dd data-maintenance-speed>—</dd></div>
+        <div><dt>Logical payload copied</dt><dd data-maintenance-size>—</dd></div>
+        <div><dt>Payload rate</dt><dd data-maintenance-byte-rate>—</dd></div>
+        <div><dt>Elapsed</dt><dd data-maintenance-elapsed>0 s</dd></div>
+    </dl>
+    <p>Copy percentage is weighted by counted rows. Payload size measures canonical field bytes (UTF-8 text and native scalar widths), excluding indexes and protocol overhead. Catalog creation, engine-run migrations and commit are indeterminate stages.</p>
+    <ol class="maintenance-stages" data-maintenance-stages aria-label="Completed and current stages"></ol>
+    <button class="button primary" type="button" data-maintenance-finish hidden>Restart application services</button>
+</section>
+</div>
+@code {
+    private ElementReference Root;
+    private IJSObjectReference? Module;
+    private IJSObjectReference? Binding;
+    private bool Ready;
+    private string Provider="PostgreSql",Mode="Copy";
+    private static readonly string[] Modes=["Copy","Switch","Upgrade"];
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(!firstRender)return;
+        Module=await JS.InvokeAsync<IJSObjectReference>("import","./Components/Shared/DatabaseMaintenanceForm.razor.js");
+        Binding=await Module.InvokeAsync<IJSObjectReference>("initialize",Root);
+        Ready=true;StateHasChanged();
+    }
+    public async ValueTask DisposeAsync()
+    {
+        try { if(Binding is not null){await Binding.InvokeVoidAsync("dispose");await Binding.DisposeAsync();}if(Module is not null)await Module.DisposeAsync(); }
+        catch(JSDisconnectedException) { }
+    }
+}

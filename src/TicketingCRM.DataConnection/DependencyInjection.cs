@@ -14,10 +14,13 @@ public static class DependencyInjection
     }
 
     public static IServiceCollection AddDataConnection(this IServiceCollection services, DatabaseProvider provider, string connectionString)
+        => services.AddDataConnection(provider, connectionString, false);
+
+    public static IServiceCollection AddDataConnection(this IServiceCollection services, DatabaseProvider provider, string connectionString, bool maintenanceReadOnly)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         services.AddScoped<TicketingCRM.Domain.Licensing.Interfaces.IMachineLicenseLookup, TicketingCRM.DataConnection.Repository.MachineLicenseLookup>();
-        services.AddScoped<IDbContextFactory<AppDbContext>>(sp => new TenantDbContextFactory(provider, connectionString, sp.GetService<TicketingCRM.Domain.Tenancy.Interfaces.ITenantContext>()));
+        services.AddScoped<IDbContextFactory<AppDbContext>>(sp => new TenantDbContextFactory(provider, connectionString, sp.GetService<TicketingCRM.Domain.Tenancy.Interfaces.ITenantContext>(), maintenanceReadOnly));
         services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
         return services;
     }
