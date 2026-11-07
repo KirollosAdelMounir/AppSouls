@@ -53,12 +53,13 @@ public sealed class ServerSetupServiceTests
         var state = await f.Service.GetStateAsync(); Assert.True(state.AdministratorPrepared); Assert.True(state.IsOpen);
         await Assert.ThrowsAsync<InvalidOperationException>(() => f.Service.PrepareAdministratorAsync(input));
         await f.Service.MigrateAndActivateAsync(f.Completion());
-        var configuration = await f.Vault.LoadAsync(); await using var db = PreparedAdministratorSeeder.Open(configuration, prepared.TenantId);
+        var configuration = await f.Vault.LoadAsync(); await using var db = TicketingCRM.DataConnection.Repository.PreparedAdministratorRepository.Open((TicketingCRM.DataConnection.Configuration.DatabaseProvider)(int)configuration.DatabaseProvider, configuration.DatabaseConnectionString, prepared.TenantId);
         var user = Assert.Single(await db.Users.ToListAsync()); Assert.Equal(prepared.UserId, user.Id); Assert.True(user.IsPlatformAdministrator); Assert.True(user.EmailConfirmed); Assert.False(user.TwoFactorEnabled);
         Assert.Equal(PasswordVerificationResult.Success, new PasswordHasher<ApplicationUser>().VerifyHashedPassword(user, user.PasswordHash!, input.Password));
         var member = Assert.Single(await db.TenantMemberships.ToListAsync()); Assert.Equal("Owner", member.Role); Assert.True(member.IsActive); Assert.Equal(prepared.TenantId, member.TenantId);
         Assert.False(f.Pending.Exists); Assert.False(File.Exists(f.Pending.KeyPath));
         Assert.False((await f.Service.GetStateAsync()).IsOpen);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => f.Service.TestScannerAsync());
         await Assert.ThrowsAsync<InvalidOperationException>(() => f.Service.PrepareAdministratorAsync(f.Request()));
         await Assert.ThrowsAsync<InvalidOperationException>(() => f.Service.ResumeAsync());
         await Assert.ThrowsAsync<ServerSetupException>(() => f.Service.MigrateAndActivateAsync(f.Completion()));
@@ -81,7 +82,7 @@ public sealed class ServerSetupServiceTests
         var other = new PreparedAdministrator { UserId = Guid.NewGuid(), TenantId = Guid.NewGuid(), Email = "prepared@example.test", DisplayName = "Other", OrganizationName = "Other", PasswordHash = prepared.PasswordHash, SecurityStamp = prepared.SecurityStamp, ExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1) };
         await Assert.ThrowsAsync<InvalidOperationException>(() => PreparedAdministratorSeeder.MigrateAndSeedAsync(f.Configuration, other));
         Assert.True(f.Pending.Exists); await f.Service.MigrateAndActivateAsync(f.Completion());
-        await using var db = PreparedAdministratorSeeder.Open(await f.Vault.LoadAsync(), prepared.TenantId); Assert.Equal(prepared.UserId, Assert.Single(await db.Users.ToListAsync()).Id);
+        var saved = await f.Vault.LoadAsync(); await using var db = TicketingCRM.DataConnection.Repository.PreparedAdministratorRepository.Open((TicketingCRM.DataConnection.Configuration.DatabaseProvider)(int)saved.DatabaseProvider, saved.DatabaseConnectionString, prepared.TenantId); Assert.Equal(prepared.UserId, Assert.Single(await db.Users.ToListAsync()).Id);
     }
     [PostgreSqlFact]
     public async Task ResumeExtendsPreparedIdentityWithoutChangingPasswordOrCreatingSchema()

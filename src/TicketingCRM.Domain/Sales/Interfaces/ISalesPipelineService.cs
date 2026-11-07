@@ -2,6 +2,8 @@ using TicketingCRM.Domain.Sales.DTOs;
 namespace TicketingCRM.Domain.Sales.Interfaces;
 public interface ISalesPipelineService
 {
+    Task<LeadDto> GetLeadAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<OpportunityDto> GetOpportunityAsync(Guid id, CancellationToken cancellationToken = default);
     Task<SalesPipelinePage> GetAsync(int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);
     Task RecordActivityAsync(RecordSalesActivityRequest request,CancellationToken cancellationToken=default);
     Task<Guid> CreateLeadAsync(CreateLeadRequest request, CancellationToken cancellationToken = default);

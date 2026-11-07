@@ -1,0 +1,10 @@
+@page "/support/tickets"
+@page "/support/tickets/new"
+@attribute [Authorize]
+@inject NavigationManager Navigation
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
+<PageTitle>Ticketing | App Souls</PageTitle>
+<div class="page-heading page-enter"><div><p class="eyebrow">SUPPORT · TICKETING</p><h1>@(NewTicket?"Submit a ticket":"Support tickets")</h1><p>Detailed inquiries, technical replies and a clear progress history.</p></div><div class="workflow-toolbar">@if(!NewTicket&&Actor.CustomerId is not null){<a class="button primary" href="/support/tickets/new">Submit ticket</a>}<a class="button secondary" href="@(NewTicket?"/support/tickets":"/support")">@(NewTicket?"All tickets":"Support")</a></div></div>
+@if(NewTicket){@if(Actor.CustomerId is not null){<BugReportIntake @rendermode="InteractiveServer" />}else{<p>Tickets are submitted by customer accounts. Staff can reply and manage progress from an existing ticket.</p>}}
+else{<SupportWorkspace @rendermode="InteractiveServer" />}
+@code{private bool NewTicket=>Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Trim('/').EndsWith("/new");}

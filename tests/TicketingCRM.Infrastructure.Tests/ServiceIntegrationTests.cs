@@ -78,10 +78,10 @@ public sealed class ServiceIntegrationTests
     }
 
     [PostgreSqlFact]
-    public async Task CustomerCannotWriteCrmButSeesOnlyOwnedRecords()
+    public async Task CustomerCannotWriteCrmAndOnlySeesOwnedSoftware()
     {
         var f=await Fixture.CreateAsync();var service=f.Workspace(f.CustomerActor);
-        var snapshot=await service.GetAsync();Assert.Equal(f.Customer,Assert.Single(snapshot.Customers).Id);Assert.Equal(f.Product,Assert.Single(snapshot.Products).Id);Assert.All(snapshot.Contracts,x=>Assert.Equal(f.Customer,x.CustomerId));
+        var snapshot=await service.GetAsync();Assert.Empty(snapshot.Customers);Assert.Empty(snapshot.Contracts);Assert.Equal(f.Product,Assert.Single(snapshot.Products).Id);Assert.All(snapshot.Entitlements,x=>Assert.Equal(f.Customer,x.CustomerId));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>service.CreateCustomerAsync(new("Blocked","new@example.test","")));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>service.CreateProductAsync(new("Blocked","NEW",".lic")));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>service.CreateContractAsync(new(f.Customer,"blocked",DateTimeOffset.UtcNow,null)));
@@ -222,7 +222,7 @@ public sealed class ServiceIntegrationTests
         var sessions=new WorkspaceSessionFactory(new Factory(f.Tenant));
         var licensing=new TicketingCRM.Infrastructure.Licensing.LicensingService(sessions,stale,new ServerConfiguration());
         await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>licensing.GetAsync());
-        var current=stale with{SecurityStamp="current-stamp"};Assert.Single((await f.Workspace(current).GetAsync()).Customers);
+        var current=stale with{SecurityStamp="current-stamp"};Assert.Single((await f.Workspace(current).GetAsync()).Products);
         var blank=stale with{SecurityStamp=""};await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>f.Workspace(blank).GetAsync());
     }
 

@@ -1,0 +1,61 @@
+@using TicketingCRM.ViewModels
+@inject TicketingCRM.Domain.Commerce.Interfaces.ICommerceService Service
+@inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
+@inject TicketingCRM.Domain.Customers.Interfaces.ICustomerLifecycleService Customers
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
+@inject NavigationManager Navigation
+<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
+<div class="workflow-stack page-enter">
+@if(Area == "catalog")
+{
+ @if(Mode == "pricing" && Model.Pricing is {} product)
+ {
+  <section class="panel workspace-form"><h2>@product.ProductName · pricing description</h2><p>Sales can prepare pricing and full commercial descriptions. An organization Owner or Admin approves them for use as the leadership-reviewed catalog.</p><form @onsubmit="Model.SavePricingAsync" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@(Model.Busy||!RendererInfo.IsInteractive)"><div class="form-grid"><SoulDropdown Label="Currency" Options="CommerceViewModel.Currencies" @bind-Value="Model.Currency" /><div class="soul-field"><label for="catalog-price">Unit price</label><input id="catalog-price" class="soul-input" type="number" min="0" max="999999999.99" step="0.01" @bind="Model.UnitPrice" required /></div></div><div class="soul-field"><label for="catalog-description">Full pricing description</label><textarea id="catalog-description" class="soul-input" @bind="Model.PricingDescription" required maxlength="8000" rows="10"></textarea></div>@if(Model.CanApprovePricing){<label class="checkbox-field"><input type="checkbox" @bind="Model.Approve" /> Approve this pricing as organization leadership</label>}<button type="submit" class="button primary">Save pricing</button></fieldset></form></section>
+ }
+ else if(Model.Catalog is {} catalog)
+ {
+  <section class="panel workspace-form"><h2>Sales software catalog</h2>@foreach(var catalogItem in catalog){<article class="form-record" @key="catalogItem.ProductId"><h3>@catalogItem.ProductName</h3><p>@catalogItem.ProductCode · @(catalogItem.Approved ? "Leadership approved" : "Pricing awaiting approval")</p><p>@(catalogItem.UnitPrice is {} price ? catalogItem.Currency + " " + price.ToString("N2") : "Price not recorded")</p><p class="form-description">@catalogItem.Description</p><a class="button secondary" href="@($"/catalog/{catalogItem.ProductId}/pricing?page={Page}")">Pricing details &amp; description</a></article>}@if(catalog.Count == 0){<p>No active products on this page.</p>}</section>
+ }
+}
+else if(Mode == "new")
+{
+ @if(Area == "orders" && Model.CanSell){<OrderEditor Model="Model" OnSave="SaveOrder" />}
+ else if(Area == "invoices" && Model.CanInvoice){<InvoiceEditor Model="Model" OnSave="SaveInvoice" />}
+}
+else if(Area == "orders" && Mode == "detail" && Model.Order is {} order)
+{
+ <section class="panel workspace-form"><div class="record-heading"><div><h2>@order.Reference</h2><p>@order.Status · recorded @order.CreatedAtUtc.ToString("u")</p></div><div class="workflow-toolbar"><a class="button secondary" href="/customers/@order.CustomerId/orders">Customer orders</a>@if(Model.CanInvoice){<a class="button primary" href="/invoices/new?orderId=@order.Id">Create invoice</a>}</div></div><CommercialSummary Lines="order.Lines" Totals="order.Totals" Currency="@order.Currency" /><p class="form-description">@order.Notes</p>@if(order.ContractId is {} contract){<a href="/contracts/@contract">Linked contract details</a>}</section>
+}
+else if(Area == "invoices" && Mode == "detail" && Model.Invoice is {} invoice)
+{
+ <section class="panel workspace-form"><div class="record-heading"><div><h2>Invoice @invoice.Details.Number</h2><p>@invoice.CustomerName · @invoice.Details.IssueDateUtc.ToString("yyyy-MM-dd")</p></div><a class="button primary" href="@($"/api/commerce/invoices/{invoice.Id}/pdf")" data-enhance-nav="false" data-transfer-download data-transfer-filename="@($"invoice-{invoice.Id:N}.pdf")">Download PDF</a></div><div class="workflow-details"><section><h3>Supplier</h3><p>@invoice.Details.SupplierName</p><p class="form-description">@invoice.Details.SupplierAddress</p><p>@invoice.Details.SupplierTaxId</p></section><section><h3>Buyer</h3><p>@invoice.Details.BuyerName</p><p class="form-description">@invoice.Details.BuyerAddress</p><p>@invoice.Details.BuyerTaxId</p></section></div><CommercialSummary Lines="invoice.Lines" Totals="invoice.Totals" Currency="@invoice.Details.Currency" /><h3>Payment terms</h3><p class="form-description">@invoice.Details.PaymentTerms</p><p>Due: @(invoice.Details.DueDateUtc?.ToString("yyyy-MM-dd") ?? "As agreed")</p><h3>Notes</h3><p class="form-description">@invoice.Details.Notes</p>@if(invoice.OrderId is {} sourceOrder){<a href="/orders/@sourceOrder">Source order</a>}@if(invoice.ContractId is {} sourceContract){<a href="/contracts/@sourceContract">Source contract</a>}</section>
+}
+else if(Area == "contracts" && Model.Contract is {} contract)
+{
+ <section class="panel workspace-form"><h2>@contract.Reference</h2><dl class="record-details"><dt>Status</dt><dd>@contract.Status</dd><dt>Starts</dt><dd>@contract.StartsAtUtc.ToString("u")</dd><dt>Ends</dt><dd>@(contract.EndsAtUtc?.ToString("u") ?? "No end recorded")</dd></dl><div class="workflow-toolbar"><a class="button secondary" href="/customers/@contract.CustomerId/contracts">Customer contract history</a><a class="button secondary" href="/customers/@contract.CustomerId/software">Purchased products &amp; support terms</a>@if(Model.CanInvoice){<a class="button primary" href="/invoices/new?contractId=@contract.Id">Create invoice</a>}</div><p>Commercial pricing is preserved in the order and invoice line items; a contract does not imply a received payment.</p></section>
+}
+else if(Area == "orders" && Model.Orders is {} orders)
+{
+ <section class="panel workspace-form"><h2>Orders</h2>@foreach(var item in orders){<article class="form-record" @key="item.Id"><h3><a href="/orders/@item.Id">@item.Reference</a></h3><p>@item.Status · @item.CreatedAtUtc.ToString("u") · @item.Currency @item.Totals.Total.ToString("N2")</p><a class="button secondary" href="/orders/@item.Id">Order details</a></article>}@if(orders.Count == 0){<p>No orders on this page.</p>}</section>
+}
+else if(Area == "invoices" && Model.Invoices is {} invoices)
+{
+ <section class="panel workspace-form"><h2>Invoices</h2><p>Create invoices from the detail page of an order or contract.</p>@foreach(var item in invoices){<article class="form-record" @key="item.Id"><h3><a href="/invoices/@item.Id">@item.Details.Number</a></h3><p>@item.CustomerName · @item.Details.Currency @item.Totals.Total.ToString("N2")</p><a class="button secondary" href="/invoices/@item.Id">Invoice details &amp; PDF</a></article>}@if(invoices.Count == 0){<p>No invoices on this page.</p>}</section>
+}
+@if(Mode == "list")
+{
+ <div class="workflow-toolbar" aria-label="Record pages">@if(Page>1){<a class="button secondary" href="@($"/{Area}?page={Page-1}")">Previous</a>}<span>Page @Page · up to 100 records</span>@if((Model.Orders?.Count??Model.Invoices?.Count??Model.Catalog?.Count)==100){<a class="button secondary" href="@($"/{Area}?page={Page+1}")">Next</a>}</div>
+}
+</div>
+@code {
+ [Parameter]public string Area{get;set;}="orders";
+ [Parameter]public string Mode{get;set;}="list";
+ [Parameter]public Guid? RecordId{get;set;}
+ [Parameter]public Guid? OrderId{get;set;}
+ [Parameter]public Guid? ContractId{get;set;}
+ [Parameter]public int Page{get;set;}=1;
+ private CommerceViewModel Model=default!;
+ protected override async Task OnParametersSetAsync(){Model=new(Service,Workspace,Customers,Actor);await Model.LoadAsync(Area,Mode,RecordId,OrderId,ContractId,Page);}
+ private async Task SaveOrder(){await Model.SaveOrderAsync();if(!Model.HasError&&Model.SavedId is {} id)Navigation.NavigateTo($"/orders/{id}");}
+ private async Task SaveInvoice(){await Model.SaveInvoiceAsync();if(!Model.HasError&&Model.SavedId is {} id)Navigation.NavigateTo($"/invoices/{id}");}
+}

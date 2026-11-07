@@ -1,10 +1,9 @@
+using TicketingCRM.DataConnection.Transactions;
 namespace TicketingCRM.DataConnection.Repository.Interfaces;
 
-// Only business services use this repository query surface; never pass it to presentation code.
-public interface IWorkspaceSession : IAsyncDisposable
+/// <summary>An operation-owned unit of work. All data access is through its typed repositories.</summary>
+public interface IWorkspaceSession : IUnitOfWork, IAsyncDisposable
 {
-    IQueryable<T> Query<T>() where T : class;
-    void Add<T>(T entity) where T : class;
     Task<int> CommitAsync(CancellationToken cancellationToken = default);
 }
 public interface IWorkspaceSessionFactory

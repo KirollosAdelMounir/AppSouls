@@ -2,7 +2,8 @@ using TicketingCRM.DataConnection;
 using System.Net.Mail;
 using SmtpClient = MailKit.Net.Smtp.SmtpClient;
 using MailKit.Security;
-using Microsoft.EntityFrameworkCore;
+using TicketingCRM.DataConnection.Repository.Queries;
+
 using Microsoft.Extensions.Logging;
 using TicketingCRM.Core.SystemConfiguration.Models;
 using TicketingCRM.Domain.Administration.DTOs;
@@ -10,6 +11,14 @@ namespace TicketingCRM.Infrastructure.Administration;
 
 public sealed partial class ServerSetupService
 {
+    public async Task<SetupConnectionResult> TestScannerAsync(CancellationToken cancellationToken = default)
+    {
+        await using var gate = pending.AcquireSetupLock();
+        if (!await IsOpen(cancellationToken)) throw new InvalidOperationException("Initial setup is closed.");
+        var result = await new TicketingCRM.Core.FileProcessing.ClamAvArtifactScanner(await Preset(cancellationToken) ?? new()).CheckAsync(cancellationToken);
+        return new(result.Available, result.Code, result.Message);
+    }
+
     public async Task<SetupConnectionResult> TestDatabaseAsync(CompleteServerSetupRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -22,9 +31,8 @@ public sealed partial class ServerSetupService
             var inspection = await DatabaseLifecycle.InspectAsync((TicketingCRM.DataConnection.Configuration.DatabaseProvider)(int)provider, connection, timeout.Token);
             if (inspection.HasAccounts)
             {
-                await using var db = PreparedAdministratorSeeder.Open(new() { DatabaseProvider = provider, DatabaseConnectionString = connection });
                 var prepared = pending.Exists ? await pending.LoadAsync(timeout.Token, allowExpired: true) : null;
-                if (prepared is null || await db.Users.AnyAsync(x => x.Id != prepared.UserId || x.PasswordHash != prepared.PasswordHash, timeout.Token))
+                if (prepared is null || await TicketingCRM.DataConnection.Repository.InstallationRepository.HasUnexpectedAccountsAsync((TicketingCRM.DataConnection.Configuration.DatabaseProvider)(int)provider, connection, prepared.UserId, prepared.PasswordHash, timeout.Token))
                     throw new InvalidOperationException("This database already has accounts. Initial setup cannot replace or adopt them.");
             }
             return new(true, "database-connected", inspection.State == "Missing"

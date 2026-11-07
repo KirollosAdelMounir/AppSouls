@@ -11,6 +11,7 @@ public sealed class SupportTicket : TenantRecord
     public string Reference { get; set; } = "";
     public SupportReportKind Kind { get; set; }
     public SupportStage Stage { get; set; } = SupportStage.Submitted;
+    public string Urgency {get;set;} = "Medium";
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
     public string StepsToReproduce { get; set; } = "";

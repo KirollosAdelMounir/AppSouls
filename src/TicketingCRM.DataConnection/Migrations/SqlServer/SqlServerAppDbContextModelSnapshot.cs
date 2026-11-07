@@ -227,6 +227,138 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.CollectionForm", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("FieldsJson")
+                        .IsRequired()
+                        .HasMaxLength(24000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PublicKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset?>("PublishedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("StateChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("StateChangedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int>("SubmissionCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicKey")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "CreatedByUserId");
+
+                    b.HasIndex("TenantId", "CreatedAtUtc", "Id");
+
+                    b.ToTable("CollectionForms");
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.CommerceOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ContractId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasMaxLength(64000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "Reference")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "CustomerId", "ContractId");
+
+                    b.HasIndex("TenantId", "CustomerId", "CreatedAtUtc");
+
+                    b.ToTable("CommerceOrder");
+                });
+
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.Contract", b =>
                 {
                     b.Property<Guid>("Id")
@@ -262,6 +394,8 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
 
                     b.HasIndex("TenantId", "Reference")
                         .IsUnique();
+
+                    b.HasIndex("TenantId", "CustomerId", "StartsAtUtc");
 
                     b.ToTable("Contracts");
                 });
@@ -448,6 +582,9 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                     b.Property<DateTimeOffset>("StartsAtUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTimeOffset?>("SupportExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier");
 
@@ -463,7 +600,48 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
 
                     b.HasIndex("TenantId", "CustomerId", "ContractId");
 
+                    b.HasIndex("TenantId", "CustomerId", "ProductId", "ExpiresAtUtc");
+
                     b.ToTable("Entitlements");
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.FormSubmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AnswersJson")
+                        .IsRequired()
+                        .HasMaxLength(64000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("FormId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("SubmittedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "FormId", "OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "FormId", "SubmittedAtUtc", "Id");
+
+                    b.ToTable("FormSubmissions");
                 });
 
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.Installation", b =>
@@ -524,6 +702,65 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                     b.HasIndex("TenantId", "CustomerId", "ProductId", "EntitlementId");
 
                     b.ToTable("Installations");
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.InvoiceDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ContractId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RequestDigest")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasMaxLength(128000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "CustomerId", "ContractId");
+
+                    b.HasIndex("TenantId", "CustomerId", "CreatedAtUtc");
+
+                    b.HasIndex("TenantId", "CustomerId", "OrderId");
+
+                    b.ToTable("InvoiceDocument");
                 });
 
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.LicenseRevision", b =>
@@ -743,6 +980,55 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.ProductPricing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ApprovedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("ProductPricing");
+                });
+
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.ProductRelease", b =>
                 {
                     b.Property<Guid>("Id")
@@ -805,6 +1091,10 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<string>("StoreUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier");
 
@@ -827,6 +1117,8 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                     b.HasIndex("TenantId", "RevokedByUserId");
 
                     b.HasIndex("TenantId", "UploadedByUserId");
+
+                    b.HasIndex("TenantId", "Status", "PublishedAtUtc");
 
                     b.HasIndex("TenantId", "ProductId", "ReleaseVersion", "Platform")
                         .IsUnique();
@@ -1066,6 +1358,318 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                     b.ToTable("SalesOpportunities");
                 });
 
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Filename")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<Guid?>("ReplyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "CustomerId");
+
+                    b.HasIndex("TenantId", "TicketId");
+
+                    b.HasIndex("TenantId", "CustomerId", "TicketId", "ReplyId");
+
+                    b.ToTable("SupportAttachment");
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportChat", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ClosedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ClosedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CustomerTypingUntilUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OpenedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("StaffTypingUntilUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "ProductId");
+
+                    b.HasIndex("TenantId", "CustomerId", "CreatedAtUtc");
+
+                    b.HasIndex("TenantId", "Topic", "Status", "CreatedAtUtc");
+
+                    b.ToTable("SupportChat");
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportChatAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ChatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Filename")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "ChatId");
+
+                    b.HasIndex("TenantId", "CustomerId");
+
+                    b.HasIndex("TenantId", "CustomerId", "ChatId", "MessageId");
+
+                    b.ToTable("SupportChatAttachment");
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportChatMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AuthorRole")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ChatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "AuthorUserId", "CreatedAtUtc");
+
+                    b.HasIndex("TenantId", "ChatId", "CreatedAtUtc");
+
+                    b.ToTable("SupportChatMessage");
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportChatReadState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ChatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ReadThroughUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "CustomerId", "ChatId");
+
+                    b.HasIndex("TenantId", "UserId", "ChatId")
+                        .IsUnique();
+
+                    b.ToTable("SupportChatReadState");
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportReply", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AuthorRole")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TicketId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "AuthorUserId", "CreatedAtUtc");
+
+                    b.HasIndex("TenantId", "TicketId", "CreatedAtUtc");
+
+                    b.ToTable("SupportReply");
+                });
+
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportTicket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1139,18 +1743,25 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<string>("Urgency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Medium");
+
                     b.Property<Guid>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "CustomerId");
-
                     b.HasIndex("TenantId", "ProductId");
 
                     b.HasIndex("TenantId", "Reference")
                         .IsUnique();
+
+                    b.HasIndex("TenantId", "CustomerId", "CreatedAtUtc");
 
                     b.HasIndex("TenantId", "ReporterUserId", "OperationId")
                         .IsUnique();
@@ -1328,7 +1939,23 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.Contract", b =>
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.CollectionForm", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.TenantMembership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CreatedByUserId")
+                        .HasPrincipalKey("TenantId", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.CommerceOrder", b =>
                 {
                     b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
                         .WithMany()
@@ -1342,6 +1969,30 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                         .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Contract", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "ContractId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.Contract", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Customer", "Customer")
+                        .WithMany("Contracts")
+                        .HasForeignKey("TenantId", "CustomerId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.Customer", b =>
@@ -1463,6 +2114,22 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.FormSubmission", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.CollectionForm", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "FormId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.Installation", b =>
                 {
                     b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
@@ -1498,6 +2165,34 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                         .HasPrincipalKey("TenantId", "CustomerId", "ProductId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.InvoiceDocument", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Contract", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "ContractId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.CommerceOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "OrderId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.LicenseRevision", b =>
@@ -1587,6 +2282,22 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                     b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.ProductPricing", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Product", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ProductId")
+                        .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -1719,6 +2430,114 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportAttachment", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.SupportTicket", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "TicketId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.SupportReply", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "TicketId", "ReplyId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "TicketId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportChat", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Product", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ProductId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportChatAttachment", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.SupportChatMessage", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "ChatId", "MessageId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "ChatId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportChatMessage", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.SupportChat", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "ChatId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportChatReadState", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.SupportChat", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "ChatId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportReply", b =>
+                {
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TicketingCRM.Domain.Persistence.Models.SupportTicket", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "CustomerId", "TicketId")
+                        .HasPrincipalKey("TenantId", "CustomerId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.SupportTicket", b =>
                 {
                     b.HasOne("TicketingCRM.Domain.Persistence.Models.Tenant", null)
@@ -1777,6 +2596,11 @@ namespace TicketingCRM.DataConnection.Migrations.SqlServer
                         .HasForeignKey("TenantId", "CustomerId")
                         .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TicketingCRM.Domain.Persistence.Models.Customer", b =>
+                {
+                    b.Navigation("Contracts");
                 });
 #pragma warning restore 612, 618
         }

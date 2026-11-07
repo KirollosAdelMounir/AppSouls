@@ -45,7 +45,7 @@ export function initialize(root) {
     form.addEventListener('submit', async event => {
         event.preventDefault(); if (busy) return; busy = true;
         const data = new FormData(form); query('fields').disabled = true;
-        try { const result = await post('start', data); set('message', result.message); const secret=form.querySelector('[name="ConnectionString"]');if(secret)secret.value=''; clearTimeout(timer); timer = setTimeout(poll, 1000); }
+        try { const result = await post('start', data); set('message', result.message); const secret=form.querySelector('[name="DatabasePassword"]');if(secret)secret.value=''; clearTimeout(timer); timer = setTimeout(poll, 1000); }
         catch (error) { set('message', error.message); query('fields').disabled = false; busy = false; }
     }, { signal: controller.signal });
     query('finish').addEventListener('click', async () => {

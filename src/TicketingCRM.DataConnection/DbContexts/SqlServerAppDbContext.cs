@@ -13,7 +13,7 @@ public sealed class SqlServerDesignFactory : IDesignTimeDbContextFactory<SqlServ
     {
         var connection = Environment.GetEnvironmentVariable("APPSOULS_DB_CONNECTION") ?? "Server=localhost;Database=appsouls_design;Integrated Security=true;TrustServerCertificate=false";
         var options = new DbContextOptionsBuilder<AppDbContext>();
-        DependencyInjection.ConfigureProvider(options, DatabaseProvider.SqlServer, connection);
+        DependencyInjection.ConfigureProvider(options, DatabaseProvider.SqlServer, connection, administrative: true);
         return new SqlServerAppDbContext(options.Options);
     }
 }

@@ -4,7 +4,7 @@
 @inject TicketingCRM.Domain.Administration.Interfaces.IInitialAdministratorService SetupService
 <PageTitle>Sign in | App Souls</PageTitle>
 <section class="panel account-panel page-enter"><p class="eyebrow">YOUR CUSTOMER WORKSPACE</p><h1>Welcome to App Souls</h1><p>Sign in to manage your customer relationships and software access.</p>
-@if (!string.IsNullOrEmpty(Error)) { <p role="alert" class="report-preview-notice">Sign-in could not be completed. Check your email, password and account access.</p> }
+@if (!string.IsNullOrEmpty(Error)) { <p role="alert" class="report-preview-notice">@(Error == "disabled" ? "Your account is disabled or no longer has access. Please contact the company to restore your access." : "Sign-in could not be completed. Check your email, password and account access.")</p> }
 @if (Configured) { <p role="status" class="feedback">Your administrator account is ready. Sign in to create customers and users.</p> }
 <form method="post" action="/account/sign-in" data-enhance="false">
 <AntiforgeryToken /><input type="hidden" name="ReturnUrl" value="@ReturnUrl" />

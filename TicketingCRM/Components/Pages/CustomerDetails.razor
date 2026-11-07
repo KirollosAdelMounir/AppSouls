@@ -1,6 +1,7 @@
 @page "/customers/{Id:guid}"
-@attribute [Authorize]
+@page "/customers/{Id:guid}/{Section}"
+@attribute [Authorize(Policy = "StaffWorkspace")]
 @using TicketingCRM.Components.Customers
-<PageTitle>Customer lifecycle | App Souls</PageTitle>
-<CustomerLifecycleWorkspace CustomerId="Id" @rendermode="InteractiveServer" />
-@code{[Parameter]public Guid Id{get;set;}}
+<PageTitle>Customer details | App Souls</PageTitle>
+<CustomerLifecycleWorkspace CustomerId="Id" Section="@(Section ?? "overview")" @key="Section" @rendermode="InteractiveServer" />
+@code { [Parameter] public Guid Id {get;set;} [Parameter] public string? Section {get;set;} }

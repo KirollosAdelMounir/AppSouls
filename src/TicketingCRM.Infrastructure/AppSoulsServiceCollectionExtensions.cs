@@ -45,13 +45,11 @@ public static class AppSoulsServiceCollectionExtensions
         if (configuration is null) return services;
         PrivateFileSystem.PrepareDirectory(Path.Combine(configuration.DataProtectionKeyDirectory, ".check"));
         services.AddScoped<IUserAdministrationService, UserAdministrationService>();
-        services.AddSalesPipeline().AddAccountSettings().AddCustomerDelivery(bootstrap);
-        services.AddScoped<ISignInDirectory, SignInDirectory>();
+        services.AddSalesPipeline().AddCommerce().AddForms().AddAccountSettings().AddCustomerDelivery(bootstrap);
         services.AddSingleton(configuration);
         services.AddSingleton(bootstrap);
         services.AddSingleton(vault);
         AddProtectedPersistence(services, configuration, bootstrap, maintenance.MaintenanceMode);
-        services.AddScoped<IWorkspaceSessionFactory, WorkspaceSessionFactory>();
         services.AddScoped<IWorkspaceService, WorkspaceService>();
         services.AddScoped<ISupportReportService, SupportReportService>();
         services.AddScoped<ISupportInboxService, SupportReportService>();

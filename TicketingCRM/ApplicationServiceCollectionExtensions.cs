@@ -26,11 +26,33 @@ internal static class ApplicationServiceCollectionExtensions
         services.AddAppSoulsInfrastructure(configuration, vault, bootstrap, pendingAdministrator, setupPresetPath, maintenance);
         services.AddSingleton(activationSignal);
         services.AddHttpContextAccessor();
+        if (Environment.GetEnvironmentVariable("APPSOULS_BEHIND_NGINX") == "1")
+        {
+            services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor |
+                    Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+                options.ForwardLimit = 1;
+                options.RequireHeaderSymmetry = true;
+                options.KnownIPNetworks.Clear();
+                options.KnownProxies.Clear();
+                options.KnownProxies.Add(System.Net.IPAddress.Loopback);
+                options.KnownProxies.Add(System.Net.IPAddress.IPv6Loopback);
+            });
+        }
         services.AddScoped<CurrentSession>();
         services.AddScoped<ICurrentActor>(sp => sp.GetRequiredService<CurrentSession>());
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<CurrentSession>());
         services.AddCascadingAuthenticationState();
-        services.AddAuthorization(options => options.AddPolicy("PlatformAdministrator", policy => policy.RequireAuthenticatedUser().AddRequirements(new PlatformAdministratorRequirement())));
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("PlatformAdministrator", policy => policy.RequireAuthenticatedUser().AddRequirements(new PlatformAdministratorRequirement()));
+            options.AddPolicy("StaffWorkspace", policy => policy.RequireAuthenticatedUser().RequireClaim("appsouls:role", "Owner", "Admin", "Technical", "Technical Developer", "Technical Support", "Sales", "Sales Manager").RequireAssertion(context => !context.User.HasClaim(c => c.Type == "appsouls:customer")));
+            options.AddPolicy("SalesWorkspace", policy => policy.RequireAuthenticatedUser().RequireClaim("appsouls:role", "Owner", "Admin", "Sales", "Sales Manager").RequireAssertion(context => !context.User.HasClaim(c => c.Type == "appsouls:customer")));
+            options.AddPolicy("DeveloperWorkspace", policy => policy.RequireAuthenticatedUser().RequireClaim("appsouls:role", "Owner", "Admin", "Technical", "Technical Developer").RequireAssertion(context => !context.User.HasClaim(c => c.Type == "appsouls:customer")));
+            options.AddPolicy("AdministratorWorkspace", policy => policy.RequireAuthenticatedUser().RequireClaim("appsouls:role", "Owner", "Admin").RequireAssertion(context => !context.User.HasClaim(c => c.Type == "appsouls:customer")));
+            options.AddPolicy("FormsManager", policy => policy.RequireAuthenticatedUser().RequireClaim("appsouls:role", "Owner", "Admin", "Sales", "Sales Manager").RequireAssertion(context => !context.User.HasClaim(c => c.Type == "appsouls:customer")));
+        });
         services.AddControllersWithViews(options => options.Filters.Add<TicketingCRM.Middlewares.ApiExceptionFilter>()).AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         AddApiDocumentation(services);
         AddSessionAuthentication(services, environment);
@@ -39,6 +61,7 @@ internal static class ApplicationServiceCollectionExtensions
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             AddFixedWindowPolicy(options, "login", 10);
+            AddFixedWindowPolicy(options, "public-forms", 20);
             AddFixedWindowPolicy(options, "licensing", 60);
             AddFixedWindowPolicy(options, "maintenance-progress", 180);
         });
@@ -67,7 +90,7 @@ internal static class ApplicationServiceCollectionExtensions
                 foreach (var operation in path.Value.Operations ?? [])
                 {
                     var security = new OpenApiSecurityRequirement();
-                    security[new OpenApiSecuritySchemeReference(path.Key.EndsWith("/latest", StringComparison.Ordinal) ? "InstallationCredential" : "SessionCookie", document)] = [];
+                    if (!path.Key.StartsWith("/f/", StringComparison.Ordinal)) security[new OpenApiSecuritySchemeReference(path.Key.EndsWith("/latest", StringComparison.Ordinal) ? "InstallationCredential" : "SessionCookie", document)] = [];
                     if (operation.Key != HttpMethod.Get) security[new OpenApiSecuritySchemeReference("Antiforgery", document)] = [];
                     operation.Value.Security = [security];
                 }

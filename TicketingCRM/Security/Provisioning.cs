@@ -16,7 +16,7 @@ public static class Provisioning
     {
         var options = new DbContextOptionsBuilder<AppDbContext>();
         var provider = (TicketingCRM.DataConnection.Configuration.DatabaseProvider)(int)configuration.DatabaseProvider;
-        DependencyInjection.ConfigureProvider(options, provider, configuration.DatabaseConnectionString);
+        DependencyInjection.ConfigureProvider(options, provider, configuration.DatabaseConnectionString, administrative: true);
         return configuration.DatabaseProvider == TicketingCRM.Core.SystemConfiguration.Models.DatabaseProvider.PostgreSql
             ? new PostgreSqlAppDbContext(options.Options, new FixedTenant(tenantId)) : new SqlServerAppDbContext(options.Options, new FixedTenant(tenantId));
     }
@@ -25,7 +25,7 @@ public static class Provisioning
         PrivateFileSystem.CheckFile(Path.GetFullPath(inputPath));
         var input = JsonSerializer.Deserialize<ProvisionMember>(await File.ReadAllTextAsync(inputPath)) ?? throw new ArgumentException("Invalid member input.");
         PasswordPolicy.Validate(input.Password);
-        if (!System.Net.Mail.MailAddress.TryCreate(input.Email, out _) || input.Role is not ("Owner" or "Admin" or "Technical" or "Customer")) throw new ArgumentException("Invalid email or role.");
+        if (!System.Net.Mail.MailAddress.TryCreate(input.Email, out _) || input.Role is not ("Owner" or "Admin" or "Technical" or "Technical Developer" or "Technical Support" or "Sales" or "Sales Manager" or "Customer")) throw new ArgumentException("Invalid email or role.");
         var tenant = input.TenantId ?? Guid.NewGuid(); await using var db = Open(configuration, tenant); await using var transaction = await db.Database.BeginTransactionAsync();
         if (input.TenantId is null) { if (string.IsNullOrWhiteSpace(input.TenantName)) throw new ArgumentException("Tenant name is required."); db.Tenants.Add(new Tenant { Id = tenant, TenantId = tenant, Name = input.TenantName }); }
         else if (!await db.Tenants.AnyAsync(x => x.Id == tenant && x.IsActive)) throw new ArgumentException("Tenant not found.");

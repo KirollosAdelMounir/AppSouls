@@ -7,7 +7,7 @@ namespace TicketingCRM.Core.FileProcessing;
 public sealed class PrivateArtifactStore
 {
     private readonly string root;
-    public const long MaximumSize = 512L * 1024 * 1024;
+    public const long MaximumSize = 8L * 1024 * 1024 * 1024;
 
     public PrivateArtifactStore(string directory)
     {
@@ -25,6 +25,7 @@ public sealed class PrivateArtifactStore
     public async Task<(string Sha256, long Size)> SaveAsync(Guid id, Stream input, CancellationToken ct)
     {
         var path = PathFor(id);
+        if(input.CanSeek && input.Length-input.Position>MaximumSize)throw new ArgumentException("Installation files are limited to 8 GiB (8,589,934,592 bytes).");
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         long size = 0;
         try
@@ -38,7 +39,7 @@ public sealed class PrivateArtifactStore
                 while ((read = await input.ReadAsync(buffer, ct)) > 0)
                 {
                     size += read;
-                    if (size > MaximumSize) throw new ArgumentException("Installation files are limited to 512 MB.");
+                    if (size > MaximumSize) throw new ArgumentException("Installation files are limited to 8 GiB (8,589,934,592 bytes).");
                     hash.AppendData(buffer, 0, read);
                     await output.WriteAsync(buffer.AsMemory(0, read), ct);
                 }

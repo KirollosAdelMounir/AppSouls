@@ -1,0 +1,69 @@
+@implements IAsyncDisposable
+@using TicketingCRM.ViewModels
+@inject TicketingCRM.Domain.Support.Interfaces.ISupportConversationService Service
+@inject TicketingCRM.Domain.Support.Interfaces.ISupportReportService Reports
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
+<div @ref="Root" class="workflow-stack page-enter" data-chat-reading="@RecordId" data-chat-last-message="@Model.Chat?.Messages.LastOrDefault()?.Id">
+@if(Mode=="new"&&Model.CanStart)
+{
+ <section class="panel workspace-form"><h2>Start an inquiry</h2><p>Technical inquiries use software your customer account owns. Sales inquiries may refer to any active catalog product, or no specific product.</p><form @onsubmit="Start" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@(Model.Busy||!RendererInfo.IsInteractive)"><SoulDropdown Label="Inquiry team" Options="Topics" Value="@Model.Topic" ValueChanged="Model.ChangeTopicAsync" /><div class="soul-field"><label for="chat-product-search">Search software</label><input id="chat-product-search" class="soul-input" @bind="Model.ProductSearch" maxlength="160" /></div><div class="workflow-toolbar"><button class="button secondary" type="button" @onclick="()=>Model.LoadProductsAsync()">Search</button>@if(Model.ProductPage>1){<button class="button secondary" type="button" @onclick="()=>Model.LoadProductsAsync(Model.ProductPage-1)">Previous products</button>}@if(Model.Products.Count==100){<button class="button secondary" type="button" @onclick="()=>Model.LoadProductsAsync(Model.ProductPage+1)">More products</button>}</div><SoulDropdown Label="Software" Options="Model.ProductOptions" @bind-Value="Model.Product" /><div class="soul-field"><label for="chat-subject">Subject</label><input id="chat-subject" class="soul-input" @bind="Model.Subject" required maxlength="200" /></div><RichTextEditor Label="Your inquiry" @bind-Value="Model.Text" Required="true" /><button type="submit" class="button primary"><AppIcon Name="send" />Start conversation</button></fieldset></form></section>
+}
+else if(Mode=="new"){<p role="alert">Live chats are started by customer accounts. Open a conversation from your team's queue to reply.</p>}
+else if(RecordId is {} id&&Model.Chat is {} thread)
+{
+ <section class="panel workspace-form"><div class="record-heading"><div><h2>@thread.Chat.Subject</h2><p>@thread.Chat.Topic team · @thread.Chat.CustomerName · @thread.Chat.Status</p><p>@thread.Chat.ProductName</p></div>@if(thread.CanReply){<button class="button secondary" disabled="@Model.Busy" @onclick="()=>Model.CloseChatAsync(id)">Close conversation</button>}</div><p class="availability">Messages are stored in this conversation. Live updates check for changes every two seconds while this view is open.</p><ConversationMessages Messages="thread.Messages" ChatAttachments="thread.Attachments" />
+ <div class="chat-typing" role="status" aria-live="polite">@if(thread.OtherPartyTyping){<span class="typing-indicator" aria-label="The other participant is typing"><AppIcon Name="typing" /><span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="sr-only">The other participant is typing</span></span>}</div><p class="availability">Showing the latest 100 messages.</p>@if(thread.CanReply){<form class="conversation-composer" @onsubmit="Send" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@(Sending||Model.Busy||!ComposerReady||!RendererInfo.IsInteractive)"><RichTextEditor @ref="ReplyEditor" Label="Reply" Value="@Model.Text" ValueChanged="Model.ChangeChatText" Rows="3" Required="@(PendingFilename is null)" /><div class="composer-files"><TransferUpload @ref="ChatUpload" Label="Attach file" ShowUploadButton="false" ShowSelectionSummary="false" OnSelectionChanged="FileSelected" Accept=".txt,.log,.pdf,.png,.jpg,.jpeg,.zip" OnUpload="upload=>Model.AttachChatAsync(id,upload)" /></div><small>Enter to send · Shift+Enter for a new line · Paste or choose a file (up to 20 MiB)</small>@if(PendingFilename is not null){<p class="attachment-preview" role="status"><AppIcon Name="attachment" />@PendingFilename <span>Ready to send</span></p>}<button type="submit" class="button primary" aria-label="Send message" title="Send message"><AppIcon Name="send" /><span>@(Sending?"Sending…":"Send")</span></button></fieldset></form>
+ }</section>
+}
+else if(Model.Chats is {} chats)
+{
+ <section class="panel workspace-form"><h2>@(Model.IsCustomer?"Your conversations":"Team inquiry queue")</h2>@foreach(var chat in chats){<article class="form-record" @key="chat.Id"><div class="record-heading"><div><h3><a href="/support/chats/@chat.Id">@chat.Subject <span class="notification-count" data-chat-unread="@chat.Id" hidden></span></a></h3><p>@chat.Topic · @chat.Status · @chat.CustomerName</p><p>@chat.ProductName</p></div><a class="button secondary" href="/support/chats/@chat.Id">Open conversation</a></div></article>}@if(chats.Count==0){<p>No conversations on this page.</p>}</section><div class="workflow-toolbar">@if(Page>1){<a class="button secondary" href="@($"/support/chats?page={Page-1}")">Previous</a>}<span>Page @Page</span>@if(chats.Count==50){<a class="button secondary" href="@($"/support/chats?page={Page+1}")">Next</a>}</div>
+}
+</div>
+@code {
+ [Parameter]public string Mode{get;set;}="list";
+ [Parameter]public Guid? RecordId{get;set;}
+ [Parameter]public int Page{get;set;}=1;
+ private ElementReference Root;
+ private IJSObjectReference? Composer;
+ private TransferUpload? ChatUpload;
+ private RichTextEditor? ReplyEditor;
+ private bool ReturnComposerFocus;
+ private string? PendingFilename;
+ private Guid? PendingFileMessageId;
+ private bool Sending,ComposerReady;
+ private void FileSelected(string? filename){PendingFilename=filename;PendingFileMessageId=null;}
+ private async Task Send()
+ {
+  if(Sending||Model.Busy||ChatUpload?.IsUploading==true||RecordId is not {} id)return;
+  Sending=true;
+  try
+  {
+   if(ChatUpload?.HasFile==true&&PendingFileMessageId is {} retry)
+   {Model.AttachmentMessageId=retry;await ChatUpload.UploadSelectedAsync();return;}
+   if(ChatUpload?.HasFile==true&&string.IsNullOrWhiteSpace(Model.Text))Model.Text=$"Attachment: {PendingFilename}";
+   await Model.SendChatAsync(id);
+   if(!Model.HasError&&ChatUpload?.HasFile==true)
+   {PendingFileMessageId=Model.AttachmentMessageId;await ChatUpload.UploadSelectedAsync();}
+  }
+  finally{Sending=false;ReturnComposerFocus=true;}
+ }
+ private ConversationsViewModel Model=default!;
+ private static readonly string[] Topics=["Technical","Sales"];
+ private readonly CancellationTokenSource Lifetime=new();private Task? Polling;
+ protected override async Task OnParametersSetAsync(){Model=new(Service,Reports,Actor);if(Mode=="new"&&Model.CanStart)await Model.LoadProductsAsync();else if(RecordId is {} id)await Model.LoadChatAsync(id);else await Model.LoadChatsAsync(Page);}
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  if(!RendererInfo.IsInteractive||RecordId is not {} id)return;
+  if(firstRender)Polling=Poll(id);
+  if(Composer is null&&Model.Chat is not null)
+  {Composer=await JS.InvokeAsync<IJSObjectReference>("import","./"+Assets["Components/Shared/ChatWorkspace.razor.js"]);await Composer.InvokeVoidAsync("initialize",Root);ComposerReady=true;StateHasChanged();}
+  if(ReturnComposerFocus&&ReplyEditor is not null&&Model.Chat?.CanReply==true){ReturnComposerFocus=false;await ReplyEditor.FocusAsync();}
+ }
+ private async Task Poll(Guid id){try{using var timer=new PeriodicTimer(TimeSpan.FromSeconds(2));while(await timer.WaitForNextTickAsync(Lifetime.Token)){if(await Model.PollChatAsync(id,Lifetime.Token))await InvokeAsync(StateHasChanged);if(Model.LiveUpdatesStopped||Model.Chat?.Chat.Status=="Closed")break;}}catch(OperationCanceledException)when(Lifetime.IsCancellationRequested){}}
+ private async Task Start(){await Model.StartAsync();if(!Model.HasError&&Model.SavedChatId is {} id)Navigation.NavigateTo($"/support/chats/{id}");}
+ public async ValueTask DisposeAsync(){await Lifetime.CancelAsync();if(Polling is not null)await Polling;if(Composer is not null)try{await Composer.InvokeVoidAsync("dispose",Root);await Composer.DisposeAsync();}catch(JSDisconnectedException){}Lifetime.Dispose();}
+}

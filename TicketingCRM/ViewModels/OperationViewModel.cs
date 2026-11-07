@@ -9,7 +9,7 @@ public abstract class OperationViewModel
     {
         if (Busy) return; Busy = true; HasError = false; Message = null;
         try { await action(); }
-        catch (UnauthorizedAccessException) { HasError = true; Message = "Your current membership does not allow this operation."; }
+        catch (UnauthorizedAccessException) { HasError = true; Message = "Your current membership does not allow this operation. If your access was disabled, please contact the company."; }
         catch (ArgumentException e) { HasError = true; Message = e.Message; }
         catch (NotSupportedException e) { HasError = true; Message = e.Message; }
         catch (InvalidOperationException) { HasError = true; Message = "The operation could not be completed. Reload the latest state and retry."; }

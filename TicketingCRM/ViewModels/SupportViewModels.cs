@@ -15,9 +15,10 @@ public sealed class SupportInboxViewModel(ISupportInboxService service):Operatio
 public sealed class SupportReportViewModel(ISupportReportService service,ICurrentActor actor,Guid ticketId):OperationViewModel
 {
  public ReportProgress? Report{get;private set;}
+ public Guid? AssignedTechnicalMemberId {get;set;} = actor.UserId;
  public string UpdateMessage{get;set;}="";public string Reason{get;set;}="";
  public SupportStage Next=>(SupportStage)((int)(Report?.Stage??SupportStage.Submitted)+1);
  private Guid Operation=Guid.NewGuid();
  public Task LoadAsync()=>RunAsync(async()=>{Report=await service.GetProgressAsync(ticketId);if(Report is null){HasError=true;Message="Report not found or access unavailable.";}});
- public Task AdvanceAsync()=>RunAsync(async()=>{if(Report is null)return;await service.ChangeStageAsync(new(ticketId,Operation,Report.Version,Next,Next==SupportStage.ReceivedByTechnicalMember?actor.UserId:null,UpdateMessage,Next==SupportStage.Completed?Reason:null,Next==SupportStage.Closed?Reason:null));Operation=Guid.NewGuid();Report=await service.GetProgressAsync(ticketId);UpdateMessage="";Reason="";Message="Report updated.";});
+ public Task AdvanceAsync()=>RunAsync(async()=>{if(Report is null)return;await service.ChangeStageAsync(new(ticketId,Operation,Report.Version,Next,Next==SupportStage.ReceivedByTechnicalMember?AssignedTechnicalMemberId:null,UpdateMessage,Next==SupportStage.Completed?Reason:null,Next==SupportStage.Closed?Reason:null));Operation=Guid.NewGuid();Report=await service.GetProgressAsync(ticketId);UpdateMessage="";Reason="";Message="Report updated.";});
 }

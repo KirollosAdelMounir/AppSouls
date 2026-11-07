@@ -19,4 +19,15 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.18.7" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="../tools/install-server.sh" Link="install/install-server.sh" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../tools/install-server.ps1" Link="install/install-server.ps1" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../tools/server_setup.py" Link="install/server_setup.py" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../tools/install-server-dependencies.sh" Link="install/install-server-dependencies.sh" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../tools/install-server-dependencies.ps1" Link="install/install-server-dependencies.ps1" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../tools/scanner_setup.py" Link="install/scanner_setup.py" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../docs/deployment/README.md" Link="install/README.md" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../docs/deployment/server-installation.md" Link="install/server-installation.md" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../docs/deployment/scanner.md" Link="install/scanner.md" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

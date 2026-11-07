@@ -1,84 +1,69 @@
 @using System.Globalization
 @using TicketingCRM.ViewModels
 @using TicketingCRM.Domain.Sales.Models
-@using TicketingCRM.Domain.Sales.DTOs
 @inject TicketingCRM.Domain.Sales.Interfaces.ISalesPipelineService Service
 @inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
 @inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
-@if(Model.Loading){<p class="loading-state" role="status">Loading your sales pipeline…</p>}
-else if(!Model.Allowed){<section class="panel workspace-form"><h2>Sales pipeline unavailable</h2><p>@Model.Error</p></section>}
-else if(Model.Data is { } data)
-{
-@if(Model.Error is not null){<p class="feedback" role="alert">@Model.Error</p>}
-@if(Model.Message is not null){<p class="feedback" role="status">@Model.Message</p>}
-<div class="sales-summary" aria-label="Sales overview"><div><span>Leads</span><strong>@data.LeadCount</strong></div><div><span>Opportunities</span><strong>@data.OpportunityCount</strong></div><p>One conversation at a time.<br />Every next step in view.</p></div>
-<div class="sales-toolbar"><SoulDropdown Id="sales-view" Label="Pipeline view" Value="@Model.Tab" ValueChanged="Model.ChangeTabAsync" Options="Views" /><span>Page @Model.Page · @data.PageSize records per page</span></div>
-<section class="panel workspace-form sales-records" aria-label="@Model.Tab">
-@if(Model.Tab=="Leads")
-{
-<h2 @ref="RecordsHeading" tabindex="-1">Leads</h2>
-@if(data.Leads.Count==0){<p>No leads on this page. Add a new contact to begin.</p>}
-@foreach(var lead in data.Leads)
-{
-ElementReference stageTrigger=default; ElementReference activityTrigger=default; ElementReference conversionTrigger=default;
-<article class="sales-record" @key="lead.Id"><div class="sales-record-heading"><div><h3>@lead.CompanyName</h3><p>@lead.ContactName · @lead.Email</p></div><span class="sales-stage">@lead.Stage</span></div>
-<p class="sales-record-meta">@Model.OwnerLabel(lead.OwnerUserId) @if(lead.FollowUpAtUtc is { } date){<span>· Follow-up @Utc(date)</span>}</p>
-@if(!string.IsNullOrEmpty(lead.Notes)){<p class="sales-notes">@lead.Notes</p>}
-<div class="sales-actions">
-@if(lead.Stage!=LeadStage.Converted){<button type="button" class="button secondary" disabled="@Model.Busy" @ref="stageTrigger" @onclick="()=>EditStage(lead,stageTrigger)">Change stage<span class="sr-only"> for @lead.CompanyName</span></button>}
-@if(lead.Stage==LeadStage.Qualified){<button type="button" class="button primary" disabled="@Model.Busy" @ref="conversionTrigger" @onclick="()=>BeginConversion(lead,conversionTrigger)">Convert lead<span class="sr-only"> @lead.CompanyName</span></button>}
-<button type="button" class="button secondary" disabled="@Model.Busy" @ref="activityTrigger" @onclick="()=>BeginActivity(lead,activityTrigger)">Record activity</button>
-<button type="button" class="button secondary" disabled="@Model.Busy" @onclick="()=>Model.ShowHistoryAsync(lead.Id,false,lead.CompanyName)">History<span class="sr-only"> for @lead.CompanyName</span></button>
-</div></article>
-}
-}
+@inject NavigationManager Navigation
+<div class="page-enter workflow-stack">
+@if(Model.Loading){<p role="status">Loading sales records…</p>}
+else if(!Model.Allowed){<section class="panel workspace-form"><h2>Sales workspace unavailable</h2><p>@Model.Error</p></section>}
 else
 {
-<h2 @ref="RecordsHeading" tabindex="-1">Opportunities</h2>
-@if(data.Opportunities.Count==0){<p>No opportunities on this page. Convert a qualified lead or add an opportunity for an existing customer.</p>}
-@foreach(var opportunity in data.Opportunities)
-{
-ElementReference stageTrigger=default; ElementReference activityTrigger=default;
-<article class="sales-record" @key="opportunity.Id"><div class="sales-record-heading"><div><h3>@opportunity.Title</h3><p>@opportunity.CustomerName</p></div><span class="sales-stage">@opportunity.Stage</span></div>
-<p class="sales-value">@opportunity.Currency @opportunity.ExpectedValue.ToString("N2",CultureInfo.InvariantCulture)</p>
-<p class="sales-record-meta">@Model.OwnerLabel(opportunity.OwnerUserId) @if(opportunity.FollowUpAtUtc is { } date){<span>· Follow-up @Utc(date)</span>}</p>
-<div class="sales-actions">@if(opportunity.Stage!=OpportunityStage.Won){<button type="button" class="button secondary" disabled="@Model.Busy" @ref="stageTrigger" @onclick="()=>EditStage(opportunity,stageTrigger)">Change stage<span class="sr-only"> for @opportunity.Title</span></button>}
-<a class="button secondary" href="@($"/customers/{opportunity.CustomerId}")">Customer lifecycle</a><button type="button" class="button secondary" disabled="@Model.Busy" @ref="activityTrigger" @onclick="()=>BeginActivity(opportunity,activityTrigger)">Record activity</button>
-<button type="button" class="button secondary" disabled="@Model.Busy" @onclick="()=>Model.ShowHistoryAsync(opportunity.Id,true,opportunity.Title)">History<span class="sr-only"> for @opportunity.Title</span></button></div></article>
+ @if(Model.Error is not null){<p class="feedback" role="alert">@Model.Error</p>}
+ @if(Model.Message is not null){<p class="feedback" role="status">@Model.Message</p>}
+ @if(Mode == "list" && Model.Data is {} data)
+ {
+  <section class="panel workspace-form"><div class="panel-heading"><h2>@(Opportunity ? "Opportunities" : "Leads")</h2><span>@(Opportunity ? data.OpportunityCount : data.LeadCount) records</span></div>
+  @if(Opportunity)
+  {
+   @foreach(var item in data.Opportunities){<article class="sales-record" @key="item.Id"><div class="record-heading"><div><h3><a href="@($"{Prefix}/{item.Id}")">@item.Title</a></h3><p>@item.CustomerName · @item.Stage</p><p>@item.Currency @item.ExpectedValue.ToString("N2", CultureInfo.InvariantCulture)</p></div><a class="button secondary" href="@($"{Prefix}/{item.Id}")">Open opportunity</a></div></article>}
+   @if(data.Opportunities.Count == 0){<p>No opportunities on this page.</p>}
+  }
+  else
+  {
+   @foreach(var item in data.Leads){<article class="sales-record" @key="item.Id"><div class="record-heading"><div><h3><a href="@($"{Prefix}/{item.Id}")">@item.CompanyName</a></h3><p>@item.ContactName · @item.Email</p><span class="sales-stage">@item.Stage</span></div><a class="button secondary" href="@($"{Prefix}/{item.Id}")">Open lead</a></div></article>}
+   @if(data.Leads.Count == 0){<p>No leads on this page.</p>}
+  }
+  <div class="sales-pagination"><button class="button secondary" disabled="@(Model.Busy || Model.Page == 1)" @onclick="() => Model.NavigateAsync(-1)">Previous</button><span>Page @Model.Page</span><button class="button secondary" disabled="@(Model.Busy || !Model.More)" @onclick="() => Model.NavigateAsync(1)">Next</button></div></section>
+ }
+ else if(Mode == "new")
+ {
+  @if(Opportunity){<SalesOpportunityForm Model="Model" Disabled="@(!RendererInfo.IsInteractive || Model.Busy)" OnCreate="SaveOpportunity" OnCancel="Back" />}
+  else{<SalesLeadForm Model="Model" Disabled="@(!RendererInfo.IsInteractive || Model.Busy)" OnCreate="SaveLead" />}
+ }
+ else
+ {
+  @if(Model.SelectedLead is {} lead){<div class="workflow-intro"><h2>@lead.CompanyName</h2><p>@lead.ContactName · @lead.Email · @lead.Stage</p></div>}
+  @if(Model.SelectedOpportunity is {} opportunity){<div class="workflow-intro"><h2>@opportunity.Title</h2><p>@opportunity.CustomerName · @opportunity.Stage</p></div>}
+  @if(Mode == "activity"){<SalesActivityEditor Model="Model" Disabled="@(!RendererInfo.IsInteractive || Model.Busy)" OnSave="SaveActivity" OnCancel="Back" />}
+  else if(Mode == "stage"){<SalesStageEditor Model="Model" Disabled="@(!RendererInfo.IsInteractive || Model.Busy)" OnSave="SaveStage" OnCancel="Back" />}
+  else if(Mode == "convert"){<SalesOpportunityForm Model="Model" Disabled="@(!RendererInfo.IsInteractive || Model.Busy)" OnCreate="SaveOpportunity" OnCancel="Back" />}
+  else if(Mode == "history")
+  {
+   <section class="panel workspace-form"><div class="workflow-toolbar"><a class="button secondary" href="@ReturnPath">Record details</a><a class="button primary" href="@(ReturnPath + "/activity")">Record activity</a></div><h2>History</h2><p>Latest 50 events · UTC</p><ol class="sales-history">@foreach(var item in Model.History ?? []){<li @key="item.Id"><strong>@(string.IsNullOrEmpty(item.FromStage) ? "Created" : item.FromStage) → @item.ToStage</strong><p>@item.Reason</p><time>@item.OccurredAtUtc.ToString("u")</time></li>}</ol>@if(Model.History?.Count == 0){<p>No events yet.</p>}</section>
+  }
+  else if(Mode == "detail")
+  {
+   <section class="panel workspace-form"><div class="workflow-toolbar"><a class="button primary" href="@(ReturnPath + "/activity")">Record activity</a><a class="button secondary" href="@(ReturnPath + "/history")">History</a><a class="button secondary" href="@(ReturnPath + "/stage")">Change stage</a>@if(Model.SelectedLead?.Stage == LeadStage.Qualified){<a class="button primary" href="@(ReturnPath + "/convert")">Convert lead</a>}</div>
+   @if(Model.SelectedLead is {} l){<dl class="record-details"><dt>Contact</dt><dd>@l.ContactName</dd><dt>Phone</dt><dd>@l.Phone</dd><dt>Source</dt><dd>@l.Source</dd><dt>Owner</dt><dd>@Model.OwnerLabel(l.OwnerUserId)</dd><dt>Follow-up</dt><dd>@l.FollowUpAtUtc?.ToString("u")</dd><dt>Notes</dt><dd>@l.Notes</dd></dl>}
+   @if(Model.SelectedOpportunity is {} o){<dl class="record-details"><dt>Customer</dt><dd><a href="/customers/@o.CustomerId">@o.CustomerName</a></dd><dt>Expected value</dt><dd>@o.Currency @o.ExpectedValue.ToString("N2", CultureInfo.InvariantCulture)</dd><dt>Owner</dt><dd>@Model.OwnerLabel(o.OwnerUserId)</dd><dt>Follow-up</dt><dd>@o.FollowUpAtUtc?.ToString("u")</dd></dl>}
+   </section>
+  }
+ }
 }
-}
-<div class="sales-pagination"><button class="button secondary" type="button" disabled="@(Model.Busy||Model.Page==1)" @onclick="()=>Model.NavigateAsync(-1)">Previous</button><span>Page @Model.Page</span><button class="button secondary" type="button" disabled="@(Model.Busy||!Model.More)" @onclick="()=>Model.NavigateAsync(1)">Next</button></div>
-</section>
-<SalesActivityEditor Model="Model" Disabled="@(!InteractiveReady||Model.Busy)" OnSave="SaveActivity" OnCancel="CancelActivity" />
-<SalesStageEditor Model="Model" Disabled="@(!InteractiveReady||Model.Busy)" OnSave="SaveStage" OnCancel="CancelStage" />
-@if(Model.Converting is not null || Model.Tab=="Opportunities")
-{<SalesOpportunityForm Model="Model" Disabled="@(!InteractiveReady||Model.Busy)" OnCreate="SaveOpportunity" OnCancel="CancelConversion" />}
-else{<SalesLeadForm Model="Model" Disabled="@(!InteractiveReady||Model.Busy)" OnCreate="SaveLead" />}
-@if(Model.History is { } history)
-{
-<section class="panel workspace-form sales-history"><h2>History · @Model.HistoryTitle</h2><p>Latest 50 events, shown in UTC.</p><ol>@foreach(var item in history){<li @key="item.Id"><strong>@(string.IsNullOrEmpty(item.FromStage)?"Created":item.FromStage) → @item.ToStage</strong><time datetime="@item.OccurredAtUtc.ToString("O")">@Utc(item.OccurredAtUtc)</time>@if(!string.IsNullOrEmpty(item.Reason)){<p>@item.Reason</p>}</li>}</ol></section>
-}
-}
+</div>
 @code {
- private SalesPipelineViewModel Model=default!;
- private bool InteractiveReady;
- private ElementReference StageReturn,ConversionReturn,ActivityReturn,RecordsHeading;
- private bool FocusRecords;
- private async Task SaveActivity(){await Model.SaveActivityAsync();FocusRecords=Model.Error is null;}
- private async Task SaveLead(){await Model.CreateLeadAsync();FocusRecords=Model.Error is null;}
- private async Task SaveOpportunity(){await Model.CreateOpportunityAsync();FocusRecords=Model.Error is null;}
- private async Task SaveStage(){await Model.SaveStageAsync();FocusRecords=Model.Error is null;}
- protected override async Task OnAfterRenderAsync(bool firstRender){if(FocusRecords){FocusRecords=false;await RecordsHeading.FocusAsync();}}
- private void BeginActivity(LeadDto record,ElementReference trigger){ActivityReturn=trigger;Model.BeginActivity(record);}
- private void BeginActivity(OpportunityDto record,ElementReference trigger){ActivityReturn=trigger;Model.BeginActivity(record);}
- private async Task CancelActivity(){Model.CancelActivity();await ActivityReturn.FocusAsync();}
- private void EditStage(LeadDto lead,ElementReference trigger){StageReturn=trigger;Model.EditStage(lead);}
- private void EditStage(OpportunityDto opportunity,ElementReference trigger){StageReturn=trigger;Model.EditStage(opportunity);}
- private void BeginConversion(LeadDto lead,ElementReference trigger){ConversionReturn=trigger;Model.BeginConversion(lead);}
- private async Task CancelStage(){Model.CancelStage();await StageReturn.FocusAsync();}
- private async Task CancelConversion(){Model.CancelConversion();await ConversionReturn.FocusAsync();}
- private static readonly string[] Views=["Leads","Opportunities"];
- protected override async Task OnInitializedAsync(){Model=new(Service,Workspace,Actor);await Model.InitializeAsync();}
- protected override void OnAfterRender(bool firstRender){if(firstRender){InteractiveReady=true;StateHasChanged();}}
- private static string Utc(DateTimeOffset date)=>date.UtcDateTime.ToString("dd MMM yyyy HH:mm",CultureInfo.InvariantCulture)+" UTC";
+ [Parameter] public bool Opportunity { get; set; }
+ [Parameter] public string Mode { get; set; } = "list";
+ [Parameter] public Guid? RecordId { get; set; }
+ private SalesPipelineViewModel Model = default!;
+ private string Prefix => Opportunity ? "/opportunities" : "/leads";
+ private string ReturnPath => RecordId is {} id ? $"{Prefix}/{id}" : Prefix;
+ protected override async Task OnParametersSetAsync(){Model = new(Service,Workspace,Actor);await Model.InitializeViewAsync(Opportunity,Mode,RecordId);}
+ private void Back() => Navigation.NavigateTo(ReturnPath);
+ private async Task SaveActivity(){await Model.SaveActivityAsync();if(Model.Error is null)Back();}
+ private async Task SaveStage(){await Model.SaveStageAsync();if(Model.Error is null)Back();}
+ private async Task SaveLead(){await Model.CreateLeadAsync();if(Model.Error is null)Navigation.NavigateTo("/leads");}
+ private async Task SaveOpportunity(){await Model.CreateOpportunityAsync();if(Model.Error is null)Navigation.NavigateTo("/opportunities");}
 }

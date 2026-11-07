@@ -13,4 +13,5 @@ public sealed record SubmitReportRequest(
     string ExpectedResult,
     string ActualResult,
     string ApplicationVersion,
-    string Environment);
+    string Environment,
+    string Urgency = "Medium");

@@ -5,6 +5,7 @@ public sealed class ProductRelease:TenantRecord
  public Guid UploadedByUserId{get;set;}
  public string ReleaseVersion{get;set;}="";
  public string Platform{get;set;}="";
+ public string? StoreUrl {get;set;}
  public string Filename{get;set;}="";
  public string Notes{get;set;}="";
  public string Sha256{get;set;}="";

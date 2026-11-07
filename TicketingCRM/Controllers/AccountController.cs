@@ -23,7 +23,7 @@ public sealed class AccountController(UserManager<ApplicationUser> users, SignIn
         var user = await users.FindByEmailAsync(email);
         if (user is null || !user.EmailConfirmed || !(await signIn.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true)).Succeeded) return Failure();
         var account = await directory.FindAsync(user.Id, user.SecurityStamp ?? "", HttpContext.RequestAborted);
-        if (account is null) return Failure();
+        if (account is null) return LocalRedirect("/account/login?error=disabled");
         var returnUrl = LocalReturn(form["ReturnUrl"].ToString());
         if (!account.TwoFactorEnabled && account.Workspaces.Count == 1) return await Complete(user, account.Workspaces[0], returnUrl, false);
         var principal = new ClaimsPrincipal(new ClaimsIdentity(new[]
@@ -41,7 +41,8 @@ public sealed class AccountController(UserManager<ApplicationUser> users, SignIn
         if (!pending.Succeeded || !Guid.TryParse(pending.Principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return Failure();
         var account = await directory.FindAsync(id, pending.Principal.FindFirstValue("appsouls:stamp") ?? "", HttpContext.RequestAborted);
         var user = await users.FindByIdAsync(id.ToString());
-        if (account is null || user is null) return Failure();
+        if (user is null) return Failure();
+        if (account is null) return LocalRedirect("/account/login?error=disabled");
         var form = await Request.ReadFormAsync(HttpContext.RequestAborted);
         var verifiedMfa = pending.Principal.HasClaim("appsouls:mfa", "true");
         if (account.TwoFactorEnabled && !verifiedMfa)
@@ -72,7 +73,7 @@ public sealed class AccountController(UserManager<ApplicationUser> users, SignIn
     {
         await signIn.SignInWithClaimsAsync(user, isPersistent: false, WorkspaceSessionClaims.Create(workspace, user.SecurityStamp ?? "", mfa));
         await HttpContext.SignOutAsync(PendingScheme);
-        return LocalRedirect(returnUrl);
+        return LocalRedirect(workspace.CustomerId is not null && returnUrl == "/" ? "/downloads" : returnUrl);
     }
     private static string LocalReturn(string value) => value.StartsWith('/') && !value.StartsWith("//") && !value.Contains('\\') ? value : "/";
     private IActionResult Failure() => LocalRedirect("/account/login?error=invalid");

@@ -10,5 +10,6 @@ public sealed class Entitlement : TenantRecord
     public string FeaturesJson { get; set; } = "{}";
     public DateTimeOffset StartsAtUtc { get; set; }
     public DateTimeOffset? ExpiresAtUtc { get; set; }
+    public DateTimeOffset? SupportExpiresAtUtc { get; set; }
     public bool IsRevoked { get; set; }
 }

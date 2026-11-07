@@ -1,0 +1,22 @@
+@using TicketingCRM.ViewModels
+<section class="panel workspace-form">
+    <h2>Organization &amp; public address</h2>
+    <form @onsubmit="OnSaveOrganization" @onsubmit:preventDefault>
+        <fieldset class="form-fields" disabled="@(!RendererInfo.IsInteractive || Model.Busy)">
+            <div class="soul-field"><label for="settings-organization">Organization name</label><input id="settings-organization" class="soul-input" @bind="Model.OrganizationName" required maxlength="200" autocomplete="organization" /></div>
+            <button class="button secondary" type="submit">Save organization name</button>
+        </fieldset>
+    </form>
+    <form @onsubmit="OnSaveAddress" @onsubmit:preventDefault>
+        <fieldset class="form-fields" disabled="@(!RendererInfo.IsInteractive || Model.Busy)">
+            <div class="soul-field"><label for="settings-public-url">Public HTTPS address</label><input id="settings-public-url" class="soul-input" type="url" @bind="Model.PublicBaseUrl" required maxlength="2048" /><small>Used for support, invitations and other public links.</small></div>
+            <button class="button primary" type="submit">Save public address</button>
+        </fieldset>
+    </form>
+    <div class="settings-actions"><a class="button secondary" href="/account/settings">Account name &amp; password</a><a class="button secondary" href="/users">Users &amp; access</a></div>
+</section>
+@code {
+ [Parameter, EditorRequired] public ServerSettingsViewModel Model { get; set; } = default!;
+ [Parameter] public EventCallback OnSaveAddress { get; set; }
+ [Parameter] public EventCallback OnSaveOrganization { get; set; }
+}

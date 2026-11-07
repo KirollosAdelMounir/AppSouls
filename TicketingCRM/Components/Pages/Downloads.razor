@@ -1,6 +1,11 @@
 @page "/downloads"
+@page "/downloads/upload"
+@page "/downloads/unpublished"
+@inject NavigationManager Navigation
 @attribute [Authorize]
 @using TicketingCRM.Components.Delivery
 <PageTitle>Software downloads | App Souls</PageTitle>
-<div class="page-heading"><div><p class="eyebrow">PRODUCT DELIVERY</p><h1>Software downloads</h1><p>Installations and updates for subscribed applications.</p></div><a class="button secondary" href="/licenses">Your licenses</a></div>
-<ProductReleasesWorkspace @rendermode="InteractiveServer" />
+<div class="page-heading page-enter"><div><p class="eyebrow">PRODUCT DELIVERY</p><h1>@Title</h1><p>Installations and updates for subscribed applications.</p></div><a class="button secondary" href="/licenses">Your licenses</a></div>
+<nav class="workflow-tabs page-enter" aria-label="Release views"><NavLink href="/downloads" Match="NavLinkMatch.All">Published releases</NavLink><AuthorizeView Policy="DeveloperWorkspace"><NavLink href="/downloads/unpublished">Unpublished installations</NavLink><NavLink href="/downloads/upload">Upload installation</NavLink></AuthorizeView></nav>
+<ProductReleasesWorkspace Mode="@Mode" @key="Mode" @rendermode="InteractiveServer" />
+@code { private string Mode => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Split('/').Last() switch { "upload" => "upload", "unpublished" => "unpublished", _ => "published" }; private string Title => Mode switch { "upload" => "Upload installation", "unpublished" => "Unpublished installations", _ => "Software downloads" }; }

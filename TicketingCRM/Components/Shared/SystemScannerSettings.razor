@@ -1,0 +1,19 @@
+@using TicketingCRM.ViewModels
+<section class="panel workspace-form page-enter">
+    <h2>Malware scanning</h2>
+    <p>ClamAV is a built-in server dependency. The server dependency installer installs the engine, configures local scanning and enables signature updates.</p>
+    <p>The default connection is localhost:3310. No integration entry is required. An existing local port override is preserved.</p>
+    @if (Model.Scanner is { } status)
+    {
+        <p class="feedback" role="@(status.Available ? "status" : "alert")">@status.Message</p>
+    }
+    else { <p class="availability">Connection not checked in this session.</p> }
+    <button class="button secondary" type="button" disabled="@(Model.Busy || !RendererInfo.IsInteractive)" @ref="CheckButton" @onclick="CheckAsync">Check scanner connection</button>
+    <p class="availability">The connection check confirms that the daemon responds. Each package must still pass its own malware scan.</p>
+</section>
+@code {
+ private ElementReference CheckButton;
+ private async Task CheckAsync() { await OnCheck.InvokeAsync(); await CheckButton.FocusAsync(); }
+ [Parameter, EditorRequired] public ServerSettingsViewModel Model { get; set; } = default!;
+ [Parameter] public EventCallback OnCheck { get; set; }
+}

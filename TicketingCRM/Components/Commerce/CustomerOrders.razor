@@ -1,0 +1,13 @@
+@inject TicketingCRM.Domain.Commerce.Interfaces.ICommerceService Service
+@using TicketingCRM.Domain.Commerce.DTOs
+@using TicketingCRM.ViewModels
+<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
+<section class="panel workspace-form page-enter"><h2>Customer orders</h2>
+@if(Model.Orders is null){<p role="status">@(Model.Busy ? "Loading orders…" : "Order access is unavailable for this membership.")</p>}
+else{@foreach(var order in Model.Orders){<article class="form-record" @key="order.Id"><h3><a href="/orders/@order.Id">@order.Reference</a></h3><p>@order.CreatedAtUtc.ToString("u") · @order.Currency @order.Totals.Total.ToString("N2")</p><a class="button secondary" href="/orders/@order.Id">Full order details</a></article>}@if(Model.Orders.Count == 0){<p>No orders recorded.</p>}}
+</section>
+@code {
+ [Parameter]public Guid CustomerId{get;set;}
+ private CustomerOrdersViewModel Model=default!;
+ protected override async Task OnParametersSetAsync(){Model=new(Service);await Model.LoadAsync(CustomerId);}
+}

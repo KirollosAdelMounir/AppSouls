@@ -9,10 +9,10 @@ public sealed class ServerConfiguration
 {
     public DatabaseProvider DatabaseProvider { get; init; }
     public string DatabaseConnectionString { get; init; } = "";
-    public string PublicBaseUrl { get; init; } = "";
+    public string PublicBaseUrl { get; set; } = "";
     public string LicenseSigningPrivateKeyPem { get; init; } = "";
     public string DataProtectionKeyDirectory { get; init; } = "";
-    public Dictionary<string, IntegrationConfiguration> Integrations { get; init; } = new();
+    public Dictionary<string, IntegrationConfiguration> Integrations { get; set; } = new();
     public SmtpConfiguration Smtp { get; set; } = new();
 
     public void Validate()

@@ -18,9 +18,9 @@ The approved architecture is in `docs/planning/Tetrarchia CRM and Licensing Arch
 
 Resolve tenant scope from authenticated membership and a validated tenant selection. Request tenant IDs never establish authority. Enforce tenant and customer ownership on every operation, relationship, cache, document path, background job and hub subscription. Do not add permissive default tenant contexts.
 
-Use one context per service operation and share it across repositories in one unit of work. Explicit transaction retries must coordinate with the provider execution strategy. External effects use a durable outbox; retries require idempotency. Never claim that a database transaction can roll back a delivered email or published file.
+Use one context per service operation and share it across cached `IRepository<TEntity, Guid>` instances obtained from the unit of work. Infrastructure composes queries through repository contracts and materializes them through DataConnection query helpers; do not reintroduce session-level Query/Add shortcuts or direct DbContext/filter-bypass operations in business services. Generic mutations stage changes; only the unit of work commits. Keep bootstrap, identity-directory and installation/background persistence behind specialized DataConnection repositories. Explicit transaction retries must coordinate with the provider execution strategy. External effects use a durable outbox; retries require idempotency. Never claim that a database transaction can roll back a delivered email or published file.
 
-Support PostgreSQL and SQL Server with separate migrations and provider validation. Provider switching on an existing database requires an explicit migration workflow. Do not automatically migrate production databases on every application startup.
+Support PostgreSQL and SQL Server with separate migrations and provider validation. Provider switching on an existing database requires an explicit migration workflow. For an already configured installation, automatically apply pending provider migrations before request handling and outbox processing start. Validate compatible migration history first and fail startup if upgrade or verification fails. Never create a fresh database or apply its first migration through this automatic path; first-time activation remains guided and explicitly confirmed.
 
 ## Security and configuration
 
@@ -61,7 +61,7 @@ Every existing or new browser upload/download must use the shared transfer progr
 
 Use `TransferReadStream` for server-consumed streams and `transfer-progress.js` for browser downloads/HTTP uploads. Download links use `download` or `data-transfer-download` and a safe filename. Future features must integrate these shared paths rather than create another progress implementation. Keep buffering bounded; use streaming file/browser sinks for large downloads. Unknown totals and database-engine stages remain indeterminate, never a fabricated percentage. Receipt of upload bytes is separate from successful validation/persistence. Browser download handoff is separate from confirmation that a file was saved to disk.
 
-Database copy/switch/upgrade runs only after explicit maintenance confirmation, with application writes and outbox processing paused, compatible migration lineage checked, original keys retained and target data verified before changing the vault connection. PostgreSQL and SQL Server use their own migrations; cross-provider copies preserve identifiers and relationships and must fail without overwriting existing target data when conversion or constraints are incompatible.
+Database copy/switch and manually requested upgrade operations run only after explicit maintenance confirmation, with application writes and outbox processing paused, compatible migration lineage checked, original keys retained and target data verified before changing the vault connection. PostgreSQL and SQL Server use their own migrations; cross-provider copies preserve identifiers and relationships and must fail without overwriting existing target data when conversion or constraints are incompatible.
 
 ## Bug and issue support tickets
 
@@ -83,8 +83,20 @@ Fresh server configuration includes creating a first administrator with platform
 
 ## Approved guided server activation sequence
 
-Prepare the first administrator before running migrations. Persist the prepared identity in a bounded, encrypted temporary file outside public content; it contains an Identity password hash, never the password, and uses a separate owner-protected key. Migration must seed that exact prepared identity with platform administration and vendor-owner membership, then activate the protected configuration and host services. Identity, tenant and membership persist atomically. Retain prepared material on failure so retries can resume the exact identity; never adopt or replace an existing account by matching an email. Remove temporary administrator material after successful activation. Migrations remain explicit, authorized setup actions, never routine startup side effects. The guided development profile must preserve earlier databases/configuration and must not ship a default administrator/password.
+Prepare the first administrator before running migrations. Persist the prepared identity in a bounded, encrypted temporary file outside public content; it contains an Identity password hash, never the password, and uses a separate owner-protected key. Migration must seed that exact prepared identity with platform administration and vendor-owner membership, then activate the protected configuration and host services. Identity, tenant and membership persist atomically. Retain prepared material on failure so retries can resume the exact identity; never adopt or replace an existing account by matching an email. Remove temporary administrator material after successful activation. The first migration remains an explicit, authorized setup action. Subsequent migrations on an existing configured installation run automatically before application services start. The guided development profile must preserve earlier databases/configuration and must not ship a default administrator/password.
 
 The approved password minimum is 8 characters, with the existing uppercase, lowercase, number and symbol checks. Keep setup, user creation, CLI provisioning, Identity configuration and visible validation text consistent. Do not restore the former 14-character minimum.
 
 First-time guided setup MUST NOT require or generate a server setup authorization token, token file or setup authorization cookie. Keep antiforgery validation, rate limits, encrypted temporary administrator storage, explicit migration confirmation and closure after activation.
+
+## Settings parity and layout
+
+Keep initial server connection fields and connectivity checks available in System Settings. Build database connection strings on the server from technical form fields; never return stored passwords. Preserve a blank password only for the exact same connection target. Account Settings and System Settings use the full available screen width, with responsive sections and the shared appearance, focus and motion controls.
+
+## Malware scanner provisioning
+
+Treat local ClamAV as a packaged server dependency for installer publication. Ship the dependency installers with published server artifacts, automatically use the loopback default, retain explicit local overrides and show connection checks in both guided setup and System Settings. OS package/service installation runs through an elevated installer, never through an elevated web process. No scanner bypass or fabricated clean result is allowed. A responding daemon is distinct from clean artifacts, fresh definitions, full archive coverage and native-platform qualification.
+
+## Full server deployment
+
+Ship elevated full-server installers with published artifacts. Detect the required .NET channel/minimum and publish architecture from the package; Windows uses IIS plus the ASP.NET Core Hosting Bundle and Program Files, Linux uses nginx/systemd and /opt/AppSouls. Provision ClamAV through the shared dependency helper. Keep application data and keys outside application content and application processes unprivileged. Preserve existing installation state during explicit upgrades. Database, initial administrator and email configuration remain guided application setup, including explicit first migration confirmation. Do not claim clean-machine/native platform qualification from mocked installer or parser checks.

@@ -46,6 +46,16 @@
     media.addEventListener('change', () => { if (read() === 'system') apply(); });
     addEventListener('storage', event => { if (event.key === key || event.key === null) apply(); });
     document.addEventListener('click', event => {
+        const answer = event.target.closest('[data-static-value]');
+        if (answer) {
+            const picker = answer.closest('[data-static-dropdown]');
+            const input = picker.parentElement.querySelector('input[type="hidden"]');
+            input.value = answer.dataset.staticValue;
+            picker.querySelector('[data-static-label]').textContent = input.value || 'Choose an answer';
+            picker.querySelectorAll('[data-static-value]').forEach(button => button.setAttribute('aria-pressed', String(button === answer)));
+            picker.open = false;
+            picker.querySelector('summary').focus();
+        }
         const option = event.target.closest('[data-appearance-value]');
         if (option) {
             fallback = option.dataset.appearanceValue;
@@ -55,13 +65,13 @@
             picker.open = false;
             picker.querySelector('summary').focus();
         }
-        document.querySelectorAll('[data-appearance-picker][open], [data-form-dropdown][open]').forEach(picker => {
+        document.querySelectorAll('[data-appearance-picker][open], [data-form-dropdown][open], [data-static-dropdown][open]').forEach(picker => {
             if (!picker.contains(event.target)) { picker.open = false; picker.querySelector('summary').focus(); }
         });
     });
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
-        const picker = event.target.closest('[data-appearance-picker], [data-form-dropdown]');
+        const picker = event.target.closest('[data-appearance-picker], [data-form-dropdown], [data-static-dropdown]');
         if (picker?.open) { picker.open = false; picker.querySelector('summary').focus(); }
     });
     document.addEventListener('DOMContentLoaded', apply);

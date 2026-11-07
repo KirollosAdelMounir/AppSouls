@@ -11,9 +11,15 @@ namespace TicketingCRM.DataConnection.DbContexts;
 public partial class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     private readonly Guid _tenantId;
+    internal Guid RowTenant => _tenantId;
+    internal Guid? RowCustomer {get;}
+    internal Guid? RowPublicForm {get;}
+    internal bool RowPrincipalActive {get;set;}
     public AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext? tenantContext = null) : base(options)
     {
         _tenantId = tenantContext?.TenantId ?? Guid.Empty;
+        RowCustomer = (tenantContext as TicketingCRM.Domain.Identity.Interfaces.ICurrentActor)?.CustomerId;
+        RowPublicForm = (tenantContext as IPublicFormRowScope)?.FormId;
     }
     public DbSet<SalesLead> SalesLeads => Set<SalesLead>();
     public DbSet<SalesOpportunity> SalesOpportunities => Set<SalesOpportunity>();
@@ -38,6 +44,9 @@ public partial class AppDbContext : IdentityDbContext<ApplicationUser, IdentityR
         ConfigureTenant(model.Entity<SalesOpportunity>());
         ConfigureTenant(model.Entity<SalesHistory>());
         ConfigureSales(model);
+        ConfigureForms(model);
+        ConfigureCommerce(model);
+        ConfigureConversations(model);
         ConfigureCustomerDelivery(model);
         ConfigureTenant(model.Entity<Contract>());
         ConfigureTenant(model.Entity<Customer>());
@@ -74,7 +83,7 @@ public partial class AppDbContext : IdentityDbContext<ApplicationUser, IdentityR
         model.Entity<Installation>().HasAlternateKey(x => new { x.TenantId, x.CustomerId, x.ProductId, x.Id });
         model.Entity<LicenseRevision>().HasOne<Installation>().WithMany().HasForeignKey(x => new { x.TenantId, x.CustomerId, x.ProductId, x.InstallationId }).HasPrincipalKey(x => new { x.TenantId, x.CustomerId, x.ProductId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         model.Entity<TenantMembership>().HasOne<Customer>().WithMany().HasForeignKey(x => new { x.TenantId, x.CustomerId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
-        model.Entity<Contract>().HasOne<Customer>().WithMany().HasForeignKey(x => new { x.TenantId, x.CustomerId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<Contract>().HasOne(x => x.Customer).WithMany(x => x.Contracts).HasForeignKey(x => new { x.TenantId, x.CustomerId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Entitlement>().HasOne<Customer>().WithMany().HasForeignKey(x => new { x.TenantId, x.CustomerId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Entitlement>().HasOne<Product>().WithMany().HasForeignKey(x => new { x.TenantId, x.ProductId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Entitlement>().HasOne<Contract>().WithMany().HasForeignKey(x => new { x.TenantId, x.ContractId }).HasPrincipalKey(x => new { x.TenantId, x.Id }).OnDelete(DeleteBehavior.Restrict);
@@ -170,10 +179,16 @@ public partial class AppDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 throw new InvalidOperationException("Tenant identity must match its scope.");
             if (entry.State is EntityState.Modified or EntityState.Deleted)
             {
+                if(entry.Entity is SupportReply or SupportChatMessage or SupportAttachment or SupportChatAttachment && entry.State is EntityState.Modified or EntityState.Deleted) throw new InvalidOperationException("Conversation messages and scanned attachment metadata are immutable.");
+                if(entry.Entity is InvoiceDocument or CommerceOrder && entry.State is EntityState.Modified or EntityState.Deleted) throw new InvalidOperationException("Issued invoices and recorded orders are immutable; create a corrected document instead.");
                 if(entry.Entity is ProductRelease && entry.OriginalValues.GetValue<string>(nameof(ProductRelease.Status)) is "Published" or "Revoked")
                 {
                     if(entry.OriginalValues.GetValue<string>(nameof(ProductRelease.Status))=="Revoked"||entry.State==EntityState.Deleted||entry.Properties.Any(p=>p.IsModified&&p.Metadata.Name!=nameof(ProductRelease.Status)&&p.Metadata.Name!=nameof(ProductRelease.RevokedByUserId)&&p.Metadata.Name!=nameof(ProductRelease.RevokedAtUtc))||entry.Entity is ProductRelease release&&release.Status!="Revoked")throw new InvalidOperationException("Published release metadata is immutable; only revocation is allowed.");
                 }
+                if (entry.Entity is FormSubmission) throw new InvalidOperationException("Form submissions are immutable.");
+                if (entry.Entity is CollectionForm && entry.OriginalValues.GetValue<DateTimeOffset?>(nameof(CollectionForm.PublishedAtUtc)) is not null &&
+                    (entry.State == EntityState.Deleted || entry.Properties.Any(p => p.IsModified && p.Metadata.Name is not (nameof(CollectionForm.Status) or nameof(CollectionForm.SubmissionCount) or nameof(CollectionForm.StateChangedByUserId) or nameof(CollectionForm.StateChangedAtUtc)))))
+                    throw new InvalidOperationException("Published form questions and public links are immutable.");
                 if (entry.Entity is CustomerActivity) throw new InvalidOperationException("Customer activities are immutable.");
                 if (entry.Entity is SalesHistory) throw new InvalidOperationException("Sales history is immutable.");
                 if (entry.Entity is LicenseSchemaRevision && entry.OriginalValues.GetValue<bool>(nameof(LicenseSchemaRevision.IsPublished)))

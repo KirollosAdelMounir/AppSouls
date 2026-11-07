@@ -15,8 +15,8 @@ public sealed class AccountSettingsController(IAccountSettingsService accounts):
     [HttpPost("password")]
     public async Task<IActionResult> Password([FromForm]ChangeAccountPasswordRequest request,[FromForm]string ConfirmPassword,CancellationToken ct)
     {
-        if(request.NewPassword!=ConfirmPassword)return LocalRedirect("/account/settings?result=invalid");
+        if(request.NewPassword!=ConfirmPassword)return LocalRedirect("/account/settings/password?result=invalid");
         try{await accounts.ChangePasswordAsync(request,ct);await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);return LocalRedirect("/account/login?passwordChanged=true");}
-        catch(ArgumentException){return LocalRedirect("/account/settings?result=invalid");}
+        catch(ArgumentException){return LocalRedirect("/account/settings/password?result=invalid");}
     }
 }

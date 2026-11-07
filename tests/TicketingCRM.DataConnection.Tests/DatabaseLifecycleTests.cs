@@ -144,8 +144,44 @@ public sealed class DatabaseLifecycleTests
         Assert.Empty(await rolledBack.Tenants.IgnoreQueryFilters().ToListAsync());
     }
 
+    [PostgreSqlFact]
+    public async Task StartupUpgradePreservesExistingIdentityAndCurrentStartupDoesNotWriteHistory()
+    {
+        await using var fixture = new Fixture(); var connection = fixture.NewConnection(); var userId = Guid.NewGuid();
+        await using (var old = DatabaseLifecycle.Open(DatabaseProvider.PostgreSql, connection))
+        {
+            await old.GetService<IMigrator>().MigrateAsync(old.Database.GetMigrations().ToArray()[^2]);
+            old.Users.Add(new ApplicationUser { Id = userId, UserName = "retained", PasswordHash = "original-hash", SecurityStamp = "original-stamp" });
+            await old.SaveChangesAsync();
+        }
+        Assert.Equal("Current", (await DatabaseLifecycle.UpgradeExistingAsync(DatabaseProvider.PostgreSql, connection)).State);
+        await using var current = DatabaseLifecycle.Open(DatabaseProvider.PostgreSql, connection);
+        var user = await current.Users.SingleAsync(); Assert.Equal(userId, user.Id); Assert.Equal("original-hash", user.PasswordHash); Assert.Equal("original-stamp", user.SecurityStamp);
+        var history = await HistoryTransaction(current);
+        await DatabaseLifecycle.UpgradeExistingAsync(DatabaseProvider.PostgreSql, connection);
+        Assert.Equal(history, await HistoryTransaction(current));
+        Assert.Empty(await current.FormSubmissions.IgnoreQueryFilters().ToListAsync());
+    }
+    [PostgreSqlFact]
+    public async Task StartupNeverCreatesOrInitializesAFreshInstallationAndRejectsUnknownHistory()
+    {
+        await using var fixture = new Fixture(); var missing = fixture.NewConnection();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => DatabaseLifecycle.UpgradeExistingAsync(DatabaseProvider.PostgreSql, missing));
+        Assert.Equal("Missing", (await DatabaseLifecycle.InspectAsync(DatabaseProvider.PostgreSql, missing)).State);
+        var noAccounts = fixture.NewConnection(); await DatabaseLifecycle.ApplyAsync(DatabaseProvider.PostgreSql, noAccounts);
+        await using var db = DatabaseLifecycle.Open(DatabaseProvider.PostgreSql, noAccounts);
+        var history = await HistoryTransaction(db);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => DatabaseLifecycle.UpgradeExistingAsync(DatabaseProvider.PostgreSql, noAccounts));
+        Assert.Equal(history, await HistoryTransaction(db)); Assert.Empty(await db.Users.ToListAsync());
+        db.Users.Add(new ApplicationUser { Id = Guid.NewGuid(), UserName = "retained" }); await db.SaveChangesAsync();
+        await db.Database.ExecuteSqlRawAsync("INSERT INTO \"__PostgreSqlMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ('99999999_Unknown', '10.0.14')");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => DatabaseLifecycle.UpgradeExistingAsync(DatabaseProvider.PostgreSql, noAccounts));
+        Assert.Single(await db.Users.ToListAsync());
+    }
+
     private static async Task<string> HistoryTransaction(TicketingCRM.DataConnection.DbContexts.AppDbContext db)
     {
+        if (db.Database.GetDbConnection().State != System.Data.ConnectionState.Open) await db.Database.OpenConnectionAsync();
         await using var command = db.Database.GetDbConnection().CreateCommand();
         command.CommandText = "SELECT string_agg(xmin::text, ',' ORDER BY \"MigrationId\") FROM \"__PostgreSqlMigrationsHistory\"";
         return Convert.ToString(await command.ExecuteScalarAsync())!;

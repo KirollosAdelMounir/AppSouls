@@ -1,0 +1,20 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="App Souls" Manufacturer="Tetrarchia" Version="$(var.ProductVersion)" UpgradeCode="D13829D0-C52D-4D61-A1F6-69F1A6CF5FD9" Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer App Souls version is installed." Schedule="afterInstallInitialize" />
+    <MediaTemplate EmbedCab="yes" />
+    <Launch Condition="VersionNT64" Message="This installer requires 64-bit Windows." />
+    <StandardDirectory Id="ProgramFiles64Folder"><Directory Id="INSTALLROOT" Name="AppSouls"><Directory Id="APPDIR" Name="app" /></Directory></StandardDirectory>
+    <Feature Id="Server" Title="App Souls server"><ComponentGroupRef Id="Payload" /></Feature>
+    <Binary Id="HostSetup" SourceFile="$(var.RunnerPath)" />
+    <CustomAction Id="PrepareHostFiles" BinaryRef="HostSetup" ExeCommand='prepare "[INSTALLROOT]."' Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="ConfigureHosting" BinaryRef="HostSetup" ExeCommand='configure "[APPDIR]."' Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="StopHosting" BinaryRef="HostSetup" ExeCommand='stop "[INSTALLROOT]."' Execute="deferred" Impersonate="no" Return="check" />
+    <CustomAction Id="RemoveHosting" BinaryRef="HostSetup" ExeCommand='remove "[INSTALLROOT]."' Execute="deferred" Impersonate="no" Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="PrepareHostFiles" Before="InstallFiles" Condition='NOT (REMOVE~="ALL")' />
+      <Custom Action="ConfigureHosting" After="InstallFiles" Condition='NOT (REMOVE~="ALL")' />
+      <Custom Action="StopHosting" Before="RemoveFiles" Condition='REMOVE~="ALL"' />
+      <Custom Action="RemoveHosting" After="StopHosting" Condition='REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE' />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

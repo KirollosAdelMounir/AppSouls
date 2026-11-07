@@ -1,0 +1,15 @@
+@using TicketingCRM.ViewModels
+<input type="hidden" name="@ProviderFieldName" value="@Model.Provider" />
+<h3>Database connection</h3><div class="form-grid setup-database-grid">
+<SoulDropdown Id="@(IdPrefix + "-database-provider")" Label="Database provider" Value="@Model.Provider" ValueChanged="Model.ChangeProvider" Options="ServerConnectionViewModel.Providers" />
+<div class="soul-field"><label for="@(IdPrefix + "-db-server")">Server</label><input id="@(IdPrefix + "-db-server")" class="soul-input" name="DatabaseServer" @bind="Model.Server" @bind:event="oninput" required maxlength="253" autocomplete="off" placeholder="localhost or database.example.com" /></div>
+<div class="soul-field"><label for="@(IdPrefix + "-db-port")">Port</label><input id="@(IdPrefix + "-db-port")" class="soul-input" type="number" name="DatabasePort" @bind="Model.Port" @bind:event="oninput" required min="1" max="65535" /></div>
+<div class="soul-field"><label for="@(IdPrefix + "-db-catalog")">Database / catalog name</label><input id="@(IdPrefix + "-db-catalog")" class="soul-input" name="DatabaseCatalog" @bind="Model.Catalog" @bind:event="oninput" required maxlength="128" autocomplete="off" /></div>
+<div class="soul-field"><label for="@(IdPrefix + "-db-user")">Database username</label><input id="@(IdPrefix + "-db-user")" class="soul-input" name="DatabaseUserName" @bind="Model.UserName" @bind:event="oninput" required maxlength="256" autocomplete="off" /></div>
+<div class="soul-field"><label for="@(IdPrefix + "-db-password")">Database password</label><input id="@(IdPrefix + "-db-password")" class="soul-input" type="password" name="DatabasePassword" maxlength="8192" autocomplete="new-password" required="@(!Model.CanKeepPassword)" /><small>@(Model.CanKeepPassword?"A password is configured for this exact connection. Leave blank to keep it.":"Enter the password for this database user.")</small></div>
+</div><label class="checkbox-field"><input type="checkbox" name="DatabaseUseTls" value="true" @bind="Model.UseTls" /> Require TLS for the database connection</label><input type="hidden" name="DatabaseUseTls" value="false" /><p class="setup-consent">Remote servers require TLS. A local development server can connect without TLS. App Souls constructs and protects the connection string for you.</p>
+@code {
+ [Parameter, EditorRequired] public ServerConnectionViewModel Model { get; set; } = default!;
+ [Parameter] public string IdPrefix { get; set; } = "setup";
+ [Parameter] public string ProviderFieldName { get; set; } = "DatabaseProvider";
+}

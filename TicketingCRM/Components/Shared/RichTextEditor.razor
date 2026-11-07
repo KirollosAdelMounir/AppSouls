@@ -1,0 +1,20 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<div class="soul-field rich-text-editor">
+<label for="@Id">@Label</label><div class="rich-text-toolbar" role="toolbar" aria-label="Text formatting"><button type="button" class="button secondary" @onclick='()=>Apply("**","**")'><strong>Bold</strong></button><button type="button" class="button secondary" @onclick='()=>Apply("*","*")'><em>Italic</em></button><button type="button" class="button secondary" @onclick='()=>Apply("\n- ","")'>List</button><button type="button" class="button secondary" @onclick='()=>Apply("`","`")'>Code</button><button type="button" class="button secondary" @onclick='()=>Apply("[","](https://)")'>Link</button></div>
+<textarea @ref="Input" id="@Id" class="soul-input" rows="@Rows" maxlength="@MaxLength" required="@Required" @bind:get="Value" @bind:set="Change" @bind:event="oninput" aria-describedby="@($"{Id}-help")"></textarea><small id="@($"{Id}-help")">Use the formatting buttons or Markdown. Pasted HTML and embedded images are not supported.</small>
+</div>
+@code {
+ [Parameter]public string Id{get;set;}=$"rich-{Guid.NewGuid():N}";
+ [Parameter]public string Label{get;set;}="Message";
+ [Parameter]public string Value{get;set;}="";
+ [Parameter]public EventCallback<string> ValueChanged{get;set;}
+ [Parameter]public int MaxLength{get;set;}=8000;
+ [Parameter]public int Rows{get;set;}=6;
+ [Parameter]public bool Required{get;set;}
+ public ValueTask FocusAsync()=>Input.FocusAsync();
+ private ElementReference Input;private IJSObjectReference? Module;
+ private Task Change(string value)=>ValueChanged.InvokeAsync(value);
+ private async Task Apply(string prefix,string suffix){Module??=await JS.InvokeAsync<IJSObjectReference>("import","./"+Assets["Components/Shared/RichTextEditor.razor.js"]);await Module.InvokeVoidAsync("insert",Input,prefix,suffix);}
+ public async ValueTask DisposeAsync(){if(Module is not null)try{await Module.DisposeAsync();}catch(JSDisconnectedException){}}
+}

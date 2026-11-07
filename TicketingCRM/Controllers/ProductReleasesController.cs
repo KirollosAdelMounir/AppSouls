@@ -7,7 +7,8 @@ namespace TicketingCRM.Controllers;
 [ApiController,Authorize,Route("api/product-releases"),AutoValidateAntiforgeryToken,EnableRateLimiting("licensing"),ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
 public sealed class ProductReleasesController(IProductReleaseService service):ControllerBase
 {
- [HttpGet]public Task<ProductReleaseSnapshot> Get(CancellationToken ct)=>service.GetAsync(ct);
+ [HttpGet]public Task<ProductReleaseSnapshot> Get(CancellationToken ct,string view="published",int page=1)=>service.ListAsync(view,page,ct);
+ [HttpPost("store")]public async Task<IActionResult> Store(CreateStoreReleaseRequest request,CancellationToken ct){await service.CreateStoreReleaseAsync(request,ct);return NoContent();}
  [HttpPost("upload"),RequestSizeLimit(538968064),RequestFormLimits(MultipartBodyLengthLimit=538968064)]
  public async Task<IActionResult> Upload([FromForm]Guid OperationId,[FromForm]Guid ProductId,[FromForm]string ReleaseVersion,[FromForm]string Platform,[FromForm]string? Notes,IFormFile Package,CancellationToken ct)
  {await using var stream=Package.OpenReadStream();await service.UploadAsync(new(OperationId,ProductId,ReleaseVersion,Platform,Path.GetFileName(Package.FileName),Notes??""),stream,ct);return LocalRedirect("/downloads?uploaded=true");}

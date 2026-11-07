@@ -4,7 +4,7 @@ namespace TicketingCRM.Domain.Support.DTOs;
 
 public sealed record ReportProgress(
     Guid TicketId, string Reference, string Title, SupportStage Stage,
-    DateTimeOffset SubmittedAt, Guid Version, IReadOnlyList<ReportStageHistory> History);
+    DateTimeOffset SubmittedAt, Guid Version, IReadOnlyList<ReportStageHistory> History, string Urgency = "Medium");
 
 // Customer-facing history only; staff identities and internal notes stay private.
 public sealed record ReportStageHistory(

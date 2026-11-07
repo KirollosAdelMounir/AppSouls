@@ -61,7 +61,7 @@ public sealed class CustomerLifecycleServiceTests
   await Assert.ThrowsAsync<ArgumentException>(()=>f.Lifecycle().RecordActivityAsync(request with{Notes="Different"}));
   await Assert.ThrowsAsync<ArgumentException>(()=>other.Lifecycle().RecordActivityAsync(request));
   await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>f.Lifecycle(f.CustomerActor).RecordActivityAsync(request));
-  Assert.Single((await f.Lifecycle().GetAsync(f.Customer)).Activities);Assert.Empty((await f.Lifecycle(f.CustomerActor).GetAsync(f.Customer)).Activities);
+  Assert.Single((await f.Lifecycle().GetAsync(f.Customer)).Activities);await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>f.Lifecycle(f.CustomerActor).GetAsync(f.Customer));
   await Assert.ThrowsAsync<UnauthorizedAccessException>(()=>f.Lifecycle(f.OtherActor).GetAsync(f.Customer));
   await using var db=CustomerDeliveryFixture.Open(f.Tenant);var activity=await db.CustomerActivities.SingleAsync();Assert.Equal(f.Owner,activity.ActorUserId);Assert.Equal(TimeSpan.Zero,activity.OccurredAtUtc.Offset);activity.Notes="Tampered";await Assert.ThrowsAsync<InvalidOperationException>(()=>db.SaveChangesAsync());
  }

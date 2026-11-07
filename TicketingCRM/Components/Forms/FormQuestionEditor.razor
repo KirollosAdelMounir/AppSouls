@@ -1,0 +1,22 @@
+@using TicketingCRM.ViewModels
+<fieldset class="form-question">
+    <legend>Question @(Model.Questions.IndexOf(Question) + 1)</legend>
+    <div class="soul-field"><label for="label-@Question.Key">Question label</label><input id="label-@Question.Key" class="soul-input" @bind="Question.Label" required maxlength="200" /></div>
+    <SoulDropdown Id="@($"type-{Question.Key}")" Label="Answer type" Options="FormsViewModel.FieldTypes" @bind-Value="Question.Type" />
+    <label class="forms-check"><input type="checkbox" @bind="Question.Required" /> Required answer</label>
+    @if (Question.Type == "Choice")
+    {
+        <div class="soul-field"><label for="choices-@Question.Key">Choices (one per line, 2–20 choices)</label><textarea id="choices-@Question.Key" class="soul-input" @bind="Question.Choices" required maxlength="2500"></textarea></div>
+    }
+    <div class="forms-actions">
+        <button class="button secondary" type="button" disabled="@(Model.Questions.IndexOf(Question) == 0)" @onclick="() => OnMove.InvokeAsync((Question, -1))">Move up</button>
+        <button class="button secondary" type="button" disabled="@(Model.Questions.IndexOf(Question) == Model.Questions.Count - 1)" @onclick="() => OnMove.InvokeAsync((Question, 1))">Move down</button>
+        <button class="button secondary" type="button" disabled="@(Model.Questions.Count <= 1)" @onclick="() => OnRemove.InvokeAsync(Question)">Remove</button>
+    </div>
+</fieldset>
+@code {
+    [Parameter] public EventCallback<(FormQuestionModel Question, int Direction)> OnMove { get; set; }
+    [Parameter] public EventCallback<FormQuestionModel> OnRemove { get; set; }
+    [Parameter, EditorRequired] public FormQuestionModel Question { get; set; } = default!;
+    [Parameter, EditorRequired] public FormsViewModel Model { get; set; } = default!;
+}

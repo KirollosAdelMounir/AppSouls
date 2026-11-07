@@ -4,22 +4,35 @@
 @page "/products"
 @page "/licenses"
 @page "/installations"
-@page "/support"
+@page "/installations/new"
+@page "/licenses/issue"
 @page "/settings"
+@page "/settings/{Section}"
+@page "/customers/new"
+@page "/products/{Section}"
+@page "/contracts/new"
+@page "/contracts/grant"
 @inject NavigationManager Navigation
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
 <PageTitle>@Title | App Souls</PageTitle>
-<div class="page-heading"><div><p class="eyebrow">APP SOULS WORKSPACE</p><h1>@Title</h1><p>@Description</p></div><a class="button secondary" href="/">Back to overview</a></div>
+@if(Actor.CustomerId is not null && Area is "customers" or "contracts" or "settings")
+{
+<section class="panel page-enter"><h1>Access unavailable</h1><p role="alert">This area is available to company staff. <a href="/downloads">Open Software &amp; Licensing</a></p></section>
+}
+else
+{
+<div class="page-heading page-enter"><div><p class="eyebrow">APP SOULS WORKSPACE</p><h1>@Title</h1><p>@Description</p></div><a class="button secondary" href="/">Back to overview</a></div>
 @if (Area == "settings")
 {
-    <ServerSettings @rendermode="InteractiveServer" />
+    <ServerSettings Section="@View" @key="View" @rendermode="InteractiveServer" />
 }
 else if (Area is "licenses" or "installations")
 {
-    <LicensingWorkspace @rendermode="InteractiveServer" />
+    <LicensingWorkspace Area="@Area" Mode="@View" @key="Area + View" @rendermode="InteractiveServer" />
 }
 else if (Area is "customers" or "products" or "contracts")
 {
-    <WorkspaceRecords Area="@Area" @rendermode="InteractiveServer" />
+    <WorkspaceRecords Area="@Area" Mode="@View" @key="View" @rendermode="InteractiveServer" />
 }
 else if (Area == "support")
 {
@@ -29,8 +42,12 @@ else
 {
 <section class="panel empty-state area-empty"><span class="empty-illustration"><AppIcon Name="@Area" /></span><h2>@Title workspace is being prepared</h2><p>This area is part of the approved implementation plan. Secure tenant access and persistent storage must be connected before records can be managed.</p><span class="availability">Foundation preview · Data services pending</span></section>
 }
+}
 @code {
-    private string Area => Navigation.ToBaseRelativePath(Navigation.Uri).Trim('/');
-    private string Title => Area switch { "customers" => "Customers", "contracts" => "Orders & contracts", "products" => "Software catalog", "licenses" => "Licenses", "installations" => "Installations", "support" => "Support", _ => "Settings" };
+    [Parameter] public string? Section { get; set; }
+    private string[] Parts => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Trim('/').Split('/');
+    private string Area => Parts[0];
+    private string View => Parts.Length > 1 ? Parts[1] : "list";
+    private string Title => Area switch { "customers" => "Customers", "contracts" => "Orders & contracts", "products" => "Software catalog", "licenses" => "Licenses", "installations" => "Installations", "support" => "Support", _ => "System settings" };
     private string Description => Area switch { "customers" => "Every relationship, with the context that matters.", "licenses" => "Manage software access throughout its lifecycle.", "products" => "A home for your current and future software.", "installations" => "Understand where your software is activated.", "contracts" => "Connect commercial agreements to customer value.", "support" => "Keep the conversation going after the contract.", _ => "Shape your organization and workspace preferences." };
 }

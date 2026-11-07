@@ -3,7 +3,7 @@ namespace TicketingCRM.Domain.Licensing.DTOs;
 public sealed record SchemaSummary(Guid Id, Guid ProductId, string Name, int Revision, string Extension, IReadOnlyList<LicenseFieldDefinition>? Fields = null);
 public sealed record InstallationSummary(Guid Id, Guid CustomerId, Guid ProductId, Guid EntitlementId, string Name, bool IsRevoked);
 public sealed record IssuedLicenseSummary(Guid Id, Guid InstallationId, int Revision, string Extension, DateTimeOffset IssuedAtUtc, DateTimeOffset? ExpiresAtUtc);
-public sealed record LicensingSnapshot(IReadOnlyList<SchemaSummary> Schemas, IReadOnlyList<InstallationSummary> Installations, IReadOnlyList<IssuedLicenseSummary> Licenses, bool CanManage);
+public sealed record LicensingSnapshot(IReadOnlyList<SchemaSummary> Schemas, IReadOnlyList<InstallationSummary> Installations, IReadOnlyList<IssuedLicenseSummary> Licenses, bool CanManage,bool CanDevelop = false);
 public sealed record PublishLicenseSchemaRequest(Guid ProductId, string Name, string Extension, IReadOnlyList<LicenseFieldDefinition> Fields);
 public sealed record EnrollInstallationRequest(Guid OperationId, Guid EntitlementId, string Name, string PublicKeyPem);
 public sealed record InstallationEnrollment(Guid InstallationId, string? CredentialToken, bool AlreadyRegistered);

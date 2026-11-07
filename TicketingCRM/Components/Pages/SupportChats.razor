@@ -1,0 +1,11 @@
+@page "/support/chats"
+@page "/support/chats/new"
+@page "/support/chats/{Id:guid}"
+@attribute [Authorize]
+@inject NavigationManager Navigation
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
+<PageTitle>Live chat | App Souls</PageTitle>
+<div class="page-heading page-enter"><div><p class="eyebrow">SUPPORT · LIVE CHAT</p><h1>@(Mode=="new"?"Start a conversation":RecordId is not null?"Live conversation":"Live chat")</h1><p>Connect customer inquiries with the appropriate team.</p></div><div class="workflow-toolbar">@if(Mode=="list"&&Actor.CustomerId is not null){<a class="button primary" href="/support/chats/new">Start conversation</a>}<a class="button secondary" href="@(Mode=="list"?"/support":"/support/chats")">@(Mode=="list"?"Support":"All conversations")</a></div></div>
+<nav class="workflow-tabs page-enter" aria-label="Support sections"><a href="/support/chats" aria-current="page">Live chat <span class="notification-count" data-chat-unread="all" hidden></span></a><a href="/support/tickets">Tickets</a></nav>
+<ChatWorkspace Mode="@Mode" RecordId="RecordId" Page="@Math.Max(1,Page)" @key="Navigation.Uri" @rendermode="InteractiveServer" />
+@code{[Parameter]public Guid? Id{get;set;}[SupplyParameterFromQuery]public int Page{get;set;}=1;private string Path=>Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Trim('/');private string Mode=>Path.EndsWith("/new")?"new":Path=="support/chats"?"list":"detail";private Guid? RecordId=>Mode=="detail"?Id:null;}

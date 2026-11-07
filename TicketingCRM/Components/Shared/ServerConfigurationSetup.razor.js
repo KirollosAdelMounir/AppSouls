@@ -12,7 +12,10 @@ export function initialize(form) {
         const result = results(kind);
         result.textContent = kind === 'migration' ? 'Activating your system…' : 'Testing connection…';
         result.dataset.state = 'pending';
-        const data = new FormData(form); // Capture before disabling; never persist or log secrets.
+        // The scanner check needs only antiforgery proof, not database or SMTP credentials.
+        const data = kind === 'scanner' ? new FormData() : new FormData(form);
+        if (kind === 'scanner') data.set('__RequestVerificationToken', form.querySelector('[name="__RequestVerificationToken"]').value);
+        // Capture before disabling; never persist or log secrets.
         const fieldset = form.querySelector('fieldset');
         fieldset.disabled = true;
         form.setAttribute('aria-busy', 'true');

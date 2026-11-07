@@ -69,6 +69,18 @@ public sealed class SalesPipelineViewModel(ISalesPipelineService service, IWorks
     public Guid OwnerId(string label) => Data?.Owners.FirstOrDefault(x => OwnerLabel(x) == label)?.UserId ?? Guid.Empty;
     public string CustomerLabel => Opportunity.CustomerId is { } id && Customers.Any(x => x.Id == id) ? CustomerOptions[Customers.ToList().FindIndex(x => x.Id == id)] : "Choose a customer";
     public void ChooseCustomer(string value) { var index = CustomerOptions.ToList().IndexOf(value); Opportunity.CustomerId = index < 0 ? null : Customers[index].Id; }
+    public LeadDto? SelectedLead { get; private set; }
+    public OpportunityDto? SelectedOpportunity { get; private set; }
+    public Task InitializeViewAsync(bool opportunity, string mode, Guid? id) => Run(async () =>
+    {
+        Tab = opportunity ? "Opportunities" : "Leads"; await Refresh(); Allowed = true;
+        if (id is not {} record) return;
+        if (opportunity) SelectedOpportunity = await service.GetOpportunityAsync(record); else SelectedLead = await service.GetLeadAsync(record);
+        if (mode == "history") { History = await service.HistoryAsync(record, opportunity); HistoryTitle = SelectedLead?.CompanyName ?? SelectedOpportunity!.Title; }
+        if (mode == "activity") { if (SelectedLead is {} lead) BeginActivity(lead); else BeginActivity(SelectedOpportunity!); }
+        if (mode == "stage") { if (SelectedLead is {} lead) EditStage(lead); else EditStage(SelectedOpportunity!); }
+        if (mode == "convert" && SelectedLead is {} conversion) BeginConversion(conversion);
+    }, false);
     public async Task InitializeAsync() => await Run(async () => { await Refresh(); Allowed = true; }, false);
     private async Task Refresh()
     {

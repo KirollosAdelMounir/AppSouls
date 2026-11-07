@@ -22,7 +22,7 @@ The InstallationLicenses migrations add a required installation association to i
 
 ## Explicit schema administration
 
-Never apply migrations during normal web startup. Back up and review the intended provider migration, then run an explicit administrative deployment operation with its connection supplied through the protected deployment environment.
+For configured installations, startup validates the existing provider migration lineage and applies pending migrations before accepting requests or starting the outbox worker. Startup does not create or initialize a fresh catalog; the first migration remains part of confirmed guided activation. Keep deployment backups and review migration compatibility. Database copy/switch operations still use explicit maintenance confirmation.
 
 Set `APPSOULS_DB_CONNECTION` for the administrative process and run `dotnet ef database update --project src/TicketingCRM.DataConnection --context PostgreSqlAppDbContext` or choose `SqlServerAppDbContext` for SQL Server. Do not place production secrets in shell history. The design-time placeholder connection supports model generation only.
 

@@ -1,8 +1,11 @@
+using TicketingCRM.Domain.Persistence.Models;
 using TicketingCRM.Core.Security;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+using TicketingCRM.DataConnection.Repository.Queries;
+using DbUpdateConcurrencyException = Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException;
+
 using TicketingCRM.Core.SystemConfiguration.Models;
 using TicketingCRM.DataConnection.Identity;
 using TicketingCRM.DataConnection.Repository;
@@ -21,11 +24,11 @@ public sealed class CustomerInvitationService(ServerConfiguration configuration)
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(request.Token));
         if (location is null || !CryptographicOperations.FixedTimeEquals(hash, Convert.FromHexString(location.Value.TokenHash))) throw new ArgumentException("The activation link is invalid or expired.");
         // Only the verified invitation proof establishes scope. Recheck all state in the one scoped unit of work.
-        await using var s = PreparedAdministratorSeeder.Open(configuration, location.Value.TenantId);
-        var invitation = await s.CustomerInvitations.SingleOrDefaultAsync(x => x.Id == request.InvitationId, cancellationToken);
-        if (invitation is null || invitation.AcceptedAtUtc is not null || invitation.ExpiresAtUtc <= DateTimeOffset.UtcNow || !CryptographicOperations.FixedTimeEquals(hash, Convert.FromHexString(invitation.TokenHash)) || !await s.Tenants.AnyAsync(x => x.IsActive, cancellationToken)) throw new ArgumentException("The activation link is invalid or expired.");
-        var user = await s.Users.SingleOrDefaultAsync(x => x.Id == invitation.UserId, cancellationToken);
-        var member = await s.TenantMemberships.SingleOrDefaultAsync(x => x.UserId == invitation.UserId && x.CustomerId == invitation.CustomerId && x.Role == "Customer", cancellationToken);
+        await using var s = InstallationRepository.OpenSession((TicketingCRM.DataConnection.Configuration.DatabaseProvider)(int)configuration.DatabaseProvider, configuration.DatabaseConnectionString, location.Value.TenantId);
+        var invitation = await s.Repository<CustomerInvitation>().GetAllQueryable().SingleOrDefaultAsync(x => x.Id == request.InvitationId, cancellationToken);
+        if (invitation is null || invitation.AcceptedAtUtc is not null || invitation.ExpiresAtUtc <= DateTimeOffset.UtcNow || !CryptographicOperations.FixedTimeEquals(hash, Convert.FromHexString(invitation.TokenHash)) || !await s.Repository<Tenant>().GetAllQueryable().AnyAsync(x => x.IsActive, cancellationToken)) throw new ArgumentException("The activation link is invalid or expired.");
+        var user = await s.Repository<ApplicationUser>().GetAllQueryable().SingleOrDefaultAsync(x => x.Id == invitation.UserId, cancellationToken);
+        var member = await s.Repository<TenantMembership>().GetAllQueryable().SingleOrDefaultAsync(x => x.UserId == invitation.UserId && x.CustomerId == invitation.CustomerId && x.Role == "Customer", cancellationToken);
         if (user is null || user.EmailConfirmed || user.PasswordHash is not null || user.SecurityStamp != invitation.SecurityStamp || member is null || member.IsActive) throw new ArgumentException("The activation link is invalid or expired.");
         user.PasswordHash = new PasswordHasher<ApplicationUser>().HashPassword(user, request.Password); user.EmailConfirmed = true; user.SecurityStamp = Guid.NewGuid().ToString("N"); user.ConcurrencyStamp = Guid.NewGuid().ToString("N"); member.IsActive = true; invitation.AcceptedAtUtc = DateTimeOffset.UtcNow;
         try { await s.SaveChangesAsync(cancellationToken); } catch (DbUpdateConcurrencyException) { throw new ArgumentException("The activation link is invalid or expired."); }

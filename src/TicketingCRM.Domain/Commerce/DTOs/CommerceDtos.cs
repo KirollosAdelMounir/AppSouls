@@ -1,0 +1,12 @@
+namespace TicketingCRM.Domain.Commerce.DTOs;
+public sealed record CommercialLine(Guid? ProductId,string Description,decimal Quantity,decimal UnitPrice,decimal DiscountPercent,decimal TaxPercent);
+public sealed record PricedLine(Guid? ProductId,string Description,decimal Quantity,decimal UnitPrice,decimal DiscountPercent,decimal TaxPercent,decimal Net,decimal Discount,decimal Tax,decimal Total);
+public sealed record CommercialTotals(decimal Subtotal,decimal Discount,decimal Tax,decimal Total);
+public sealed record CreateOrderRequest(Guid OperationId,Guid CustomerId,Guid? ContractId,string Reference,string Currency,IReadOnlyList<CommercialLine> Lines,string Notes);
+public sealed record OrderDto(Guid Id,Guid CustomerId,Guid? ContractId,string Reference,string Currency,string Status,IReadOnlyList<PricedLine> Lines,CommercialTotals Totals,string Notes,DateTimeOffset CreatedAtUtc);
+public sealed record InvoiceInput(string Number,string SupplierName,string SupplierTaxId,string SupplierAddress,string BuyerName,string BuyerTaxId,string BuyerAddress,string Currency,DateTimeOffset IssueDateUtc,DateTimeOffset? DueDateUtc,string PaymentTerms,string Notes,IReadOnlyList<CommercialLine> Lines);
+public sealed record CreateInvoiceRequest(Guid OperationId,Guid CustomerId,Guid? OrderId,Guid? ContractId,InvoiceInput Invoice);
+public sealed record InvoiceDto(Guid Id,Guid CustomerId,Guid? OrderId,Guid? ContractId,string CustomerName,InvoiceInput Details,IReadOnlyList<PricedLine> Lines,CommercialTotals Totals,DateTimeOffset CreatedAtUtc);
+public sealed record InvoiceFile(string Filename,Stream Content);
+public sealed record CatalogPriceDto(Guid ProductId,Guid? Version,string ProductName,string ProductCode,string Currency,decimal? UnitPrice,string Description,bool Approved);
+public sealed record UpdatePricingRequest(Guid ProductId,Guid? Version,string Currency,decimal UnitPrice,string Description,bool Approve);

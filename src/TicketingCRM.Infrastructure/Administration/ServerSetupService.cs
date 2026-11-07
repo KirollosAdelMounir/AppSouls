@@ -5,7 +5,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
+using TicketingCRM.DataConnection.Repository.Queries;
+
 using TicketingCRM.Core.SystemConfiguration;
 using TicketingCRM.Core.SystemConfiguration.Models;
 using TicketingCRM.DataConnection.Identity;
@@ -21,8 +22,7 @@ public sealed partial class ServerSetupService(ServerConfiguration? runningConfi
         // Read committed configuration too: a completed setup closes even in this pre-reload service instance.
         var configuration = File.Exists(bootstrap.VaultPath) ? await vault.LoadAsync(ct) : runningConfiguration;
         if (configuration is null) return true;
-        await using var db = PreparedAdministratorSeeder.Open(configuration);
-        return !await db.Users.AnyAsync(ct);
+        return !await TicketingCRM.DataConnection.Repository.InstallationRepository.HasAccountsAsync((TicketingCRM.DataConnection.Configuration.DatabaseProvider)(int)configuration.DatabaseProvider, configuration.DatabaseConnectionString, ct);
     }
     public async Task<ServerSetupState> GetStateAsync(CancellationToken cancellationToken = default)
     {

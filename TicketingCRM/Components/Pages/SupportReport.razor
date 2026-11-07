@@ -1,18 +1,8 @@
 @page "/support/{TicketId:guid}"
+@page "/support/{TicketId:guid}/{Section}"
 @attribute [Authorize]
-@rendermode InteractiveServer
-@using TicketingCRM.ViewModels
-@using TicketingCRM.Domain.Support.DTOs
-@using TicketingCRM.Domain.Support.Models
-@inject TicketingCRM.Domain.Support.Interfaces.ISupportReportService Service
-@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
-<PageTitle>Support report | App Souls</PageTitle>
-<div class="page-heading"><div><p class="eyebrow">SUPPORT</p><h1>@(Model.Report?.Reference??"Support report")</h1><p>@Model.Report?.Title</p></div><a class="button secondary" href="/support">All reports</a></div>
-<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
-@if(Model.Report is not null){<section class="panel workspace-form"><h2>@SupportStageLabel.Name(Model.Report.Stage)</h2><ol class="support-stages">@foreach(var stage in Enum.GetValues<SupportStage>()){<li class="@(stage==Model.Report.Stage?"current-stage":"")"><span class="step-number">@((int)stage+1)</span><div><h3>@SupportStageLabel.Name(stage)</h3>@if(stage==Model.Report.Stage){<p>Current stage</p>}</div></li>}</ol><h2>Updates</h2>@foreach(var update in Model.Report.History){<p><time datetime="@update.OccurredAt.ToString("O")">@update.OccurredAt.ToString("yyyy-MM-dd HH:mm 'UTC'")</time> · @update.CustomerVisibleMessage</p>}</section>
-@if(Model.Report.Stage!=SupportStage.Closed&&(Actor.CustomerId is null||Model.Report.Stage==SupportStage.Completed)){<section class="panel workspace-form entitlement-form"><h2>Move to @SupportStageLabel.Name(Model.Next)</h2><form @onsubmit="Model.AdvanceAsync" @onsubmit:preventDefault><div class="soul-field"><label for="update-message">Customer-visible update</label><textarea id="update-message" class="soul-input" @bind="Model.UpdateMessage" required maxlength="2000"></textarea></div>@if(Model.Next==SupportStage.Completed||Model.Next==SupportStage.Closed){<div class="soul-field"><label for="resolution">@(Model.Next==SupportStage.Completed?"Resolution":"Closure reason")</label><textarea id="resolution" class="soul-input" @bind="Model.Reason" required maxlength="1000"></textarea></div>}<button class="button primary" type="submit" disabled="@Model.Busy">Update stage</button></form></section>}}
-@code {
- [Parameter]public Guid TicketId{get;set;}
- private SupportReportViewModel Model=null!;
- protected override async Task OnParametersSetAsync(){Model=new(Service,Actor,TicketId);await Model.LoadAsync();}
-}
+@inject NavigationManager Navigation
+<PageTitle>Support ticket | App Souls</PageTitle>
+<div class="page-heading page-enter"><div><p class="eyebrow">SUPPORT · TICKETING</p><h1>@Title</h1><p>One inquiry, with its replies, attachments and progress in focused views.</p></div><a class="button secondary" href="/support/tickets">All tickets</a></div>
+<SupportTicketWorkspace TicketId="TicketId" Mode="@Mode" ReplyId="ReplyId" @key="Navigation.Uri" @rendermode="InteractiveServer" />
+@code{[Parameter]public Guid TicketId{get;set;}[Parameter]public string? Section{get;set;}[SupplyParameterFromQuery]public Guid? ReplyId{get;set;}private string Mode=>Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Trim('/').Split('/').Last() switch{"replies"=>"replies","attachments"=>"attachments","progress"=>"progress",_=>"details"};private string Title=>Mode switch{"replies"=>"Ticket replies","attachments"=>"Ticket attachments","progress"=>"Ticket progress",_=>"Ticket inquiry"};}

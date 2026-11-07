@@ -13,7 +13,7 @@ public sealed class PostgreSqlDesignFactory : IDesignTimeDbContextFactory<Postgr
     {
         var connection = Environment.GetEnvironmentVariable("APPSOULS_DB_CONNECTION") ?? "Host=localhost;Database=appsouls_design";
         var options = new DbContextOptionsBuilder<AppDbContext>();
-        DependencyInjection.ConfigureProvider(options, DatabaseProvider.PostgreSql, connection);
+        DependencyInjection.ConfigureProvider(options, DatabaseProvider.PostgreSql, connection, administrative: true);
         return new PostgreSqlAppDbContext(options.Options);
     }
 }

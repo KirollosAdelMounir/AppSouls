@@ -2,10 +2,10 @@
 @inject TicketingCRM.Domain.Licensing.Interfaces.ILicensingService Licensing
 @inject TicketingCRM.Domain.Workspace.Interfaces.IWorkspaceService Workspace
 @if(Model.Snapshot is null){<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" /><p>Loading model definitions…</p>}
-else if(!Model.Snapshot.CanManage){<p role="alert">License administration access is required.</p>}
+else if(!Model.Snapshot.CanDevelop){<p role="alert">License administration access is required.</p>}
 else {
 <OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
-    <section class="panel report-intake">
+    @if(Mode == "new"){<section class="panel report-intake page-enter">
         <div class="panel-heading"><div><h2>License model builder</h2><p>Publishing creates an immutable revision. Integer and decimal values use strings in every language.</p></div></div>
         <div class="control-grid">
             <SoulDropdown Label="Product" Options="Model.Products" @bind-Value="Model.Product" />
@@ -25,9 +25,11 @@ else {
         <button class="button primary" @onclick="Model.PublishAsync" disabled="@Model.Busy">Publish model revision</button>
     </section>
 
-<section class="panel workspace-form"><h2>Published models</h2><p>Mappings and definitions are immutable after publication. Changes create a new revision.</p><ul class="license-field-list">@foreach(var schema in Model.Snapshot.Schemas){<li @key="schema.Id"><span>@schema.Name · revision @schema.Revision · @schema.Extension</span><a class="button secondary" href="@($"/api/licensing/schemas/{schema.Id}/export")" data-enhance-nav="false">Export C#, JavaScript, Java &amp; Python</a></li>}</ul></section>
+}
+@if(Mode != "new"){<section class="panel workspace-form page-enter"><h2>Published models</h2><p>Mappings and definitions are immutable after publication. Changes create a new revision.</p><ul class="license-field-list">@foreach(var schema in Model.Snapshot.Schemas){<li @key="schema.Id"><span>@schema.Name · revision @schema.Revision · @schema.Extension</span><a class="button secondary" href="@($"/api/licensing/schemas/{schema.Id}/export")" data-enhance-nav="false" data-transfer-download data-transfer-filename="AppSouls-models.zip">Export C#, JavaScript, Java &amp; Python</a></li>}</ul></section>}
 }
 @code {
+ [Parameter]public string Mode{get;set;}="list";
  private LicenseModelBuilderViewModel Model=null!;
  protected override async Task OnInitializedAsync(){Model=new(Licensing,Workspace);await Model.LoadAsync();}
 }

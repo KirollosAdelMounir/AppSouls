@@ -1,19 +1,31 @@
 @using TicketingCRM.ViewModels
-@using TicketingCRM.Domain.Configuration.DTOs
 @inject TicketingCRM.Domain.Configuration.Interfaces.IServerSettingsService Service
-@if(Model.Loading){<p class="loading-state">Loading server settings…</p>}
-else if(Model.Settings is null){<section class="panel workspace-form"><h2>Workspace preferences</h2><p>Use Appearance to select your theme. Global server configuration is restricted to platform administrators.</p><a class="button secondary" href="/account/security">Account security</a></section>}
+@if (Model.Loading) { <p class="loading-state" role="status">Loading system settings…</p> }
+else if (Model.Settings is null)
+{
+    @if (Model.Error is not null) { <p class="feedback" role="alert">@Model.Error</p> }
+    <section class="panel workspace-form page-enter"><h2>Workspace preferences</h2><p>Use Appearance to select your theme. System configuration is restricted to platform administrators.</p><a class="button secondary" href="/account/settings">Account settings</a></section>
+}
 else
 {
-@if(Model.Message is not null){<p class="feedback" role="status">@Model.Message</p>}
-@if(Model.Error is not null){<p class="feedback" role="alert">@Model.Error</p>}
-<div class="settings-grid page-enter">
-<section class="panel workspace-form"><h2>Database connection</h2><p><a class="button secondary" href="/database-maintenance">Copy, switch or upgrade a database</a></p><p>Secrets are never returned to this page. Database changes take effect after a server restart and require an explicit migration.</p><p>The current provider is @Model.Settings.DatabaseProvider. Database changes use the maintenance workflow so accounts, schema history, keys and progress are checked together.</p></section>
-<section class="panel workspace-form"><h2>Email delivery</h2><p>Configure your SMTP provider. TLS is required. Credentials are encrypted in the server vault.</p><form @onsubmit="Model.SaveEmail" @onsubmit:preventDefault><label class="check-field"><input type="checkbox" @bind="Model.EmailEnabled" /> Enable email delivery</label><div class="soul-field"><label for="smtp-host">SMTP host</label><input id="smtp-host" class="soul-input" @bind="Model.Host" maxlength="253" /></div><div class="soul-field"><label for="smtp-port">Port</label><input id="smtp-port" class="soul-input" type="number" @bind="Model.Port" min="1" max="65535" /></div><div class="soul-field"><label for="sender">Sender address</label><input id="sender" class="soul-input" type="email" @bind="Model.Sender" maxlength="254" /></div><div class="soul-field"><label for="smtp-user">SMTP username</label><input id="smtp-user" class="soul-input" @bind="Model.UserName" maxlength="254" autocomplete="off" /></div><div class="soul-field"><label for="smtp-password">New SMTP password</label><input id="smtp-password" class="soul-input" type="password" @bind="Model.Password" maxlength="4096" autocomplete="new-password" placeholder="@(Model.Settings.SmtpPasswordConfigured?"Configured — leave empty to preserve":"Not configured")" /></div><button class="button primary" type="submit" disabled="@Model.Busy">Save email settings</button></form></section>
-<section class="panel workspace-form integration-settings"><h2>Integration credentials</h2><p>Store the credentials needed for external services. Saving configuration does not enable an integration or make a network request.</p><div class="table-scroll"><table class="data-table"><thead><tr><th>Integration</th><th>Base URL</th><th>Configured credentials</th></tr></thead><tbody>@foreach(var item in Model.Settings.Integrations){<tr @key="item.Name"><td>@item.Name</td><td>@item.BaseUrl</td><td>@string.Join(", ",item.ConfiguredCredentialNames)</td></tr>}</tbody></table></div><form @onsubmit="Model.SaveIntegration" @onsubmit:preventDefault><div class="control-grid"><div class="soul-field"><label for="integration-name">Integration identifier</label><input id="integration-name" class="soul-input" @bind="Model.IntegrationName" required maxlength="64" /></div><div class="soul-field"><label for="integration-url">HTTPS base URL (optional)</label><input id="integration-url" class="soul-input" @bind="Model.IntegrationUrl" type="url" /></div><div class="soul-field"><label for="credential-name">Credential name</label><input id="credential-name" class="soul-input" @bind="Model.CredentialName" maxlength="64" placeholder="For example: ApiKey" /></div><div class="soul-field"><label for="credential-value">New credential value</label><input id="credential-value" class="soul-input" @bind="Model.CredentialValue" type="password" maxlength="8192" autocomplete="new-password" /></div></div><button class="button primary" type="submit" disabled="@Model.Busy">Save integration</button></form></section>
-</div>
+    @if (Model.Message is not null) { <p class="feedback" role="status">@Model.Message</p> }
+    @if (Model.Error is not null) { <p class="feedback" role="alert">@Model.Error</p> }
+    <nav class="workflow-tabs page-enter" aria-label="System settings sections">@foreach(var tab in Sections){<a href="@($"/settings/{tab.Key}")" aria-current="@(Active == tab.Key ? "page" : null)">@tab.Value</a>}</nav>
+    <div class="workflow-stack page-enter">
+        @if(Active == "general"){<SystemGeneralSettings Model="Model" OnSaveAddress="Model.SavePublicAddress" OnSaveOrganization="Model.SaveOrganization" />}
+        @if(Active == "email"){<SystemEmailSettings Model="Model" OnSave="Model.SaveEmail" OnTest="Model.TestEmail" />}
+        @if(Active == "database"){<section class="panel workspace-form database-settings">
+            <h2>Database connection</h2><p>App Souls builds the connection string from these fields. Test the server and catalog before switching. Pending migrations for this installation run automatically on startup; first-time activation stays in guided setup.</p>
+            <DatabaseMaintenanceForm CurrentProvider="@Model.Settings.DatabaseProvider" CurrentFields="Model.Settings.Database" />
+        </section>}
+        @if(Active == "scanner"){<SystemScannerSettings Model="Model" OnCheck="Model.CheckScanner" />}
+        @if(Active == "integrations"){<SystemIntegrationSettings Model="Model" OnSave="Model.SaveIntegration" />}
+    </div>
 }
 @code {
- private ServerSettingsViewModel Model=null!;
- protected override async Task OnInitializedAsync(){Model=new(Service);await Model.InitializeAsync();}
+ [Parameter] public string Section {get;set;} = "general";
+ private string Active => Sections.ContainsKey(Section) ? Section : "general";
+ private static readonly IReadOnlyDictionary<string,string> Sections = new Dictionary<string,string> { ["general"]="Organization", ["email"]="Email", ["database"]="Database", ["scanner"]="Malware scanning", ["integrations"]="Integrations" };
+ private ServerSettingsViewModel Model = null!;
+ protected override async Task OnInitializedAsync() { Model = new(Service); await Model.InitializeAsync(); }
 }

@@ -8,7 +8,7 @@ else
 @if (Model.Error is not null) { <p class="feedback" role="alert">@Model.Error</p> }
 @if (Model.Message is not null) { <p class="feedback" role="status">@Model.Message</p> }
 <div class="workspace-records page-enter">
-<section class="panel workspace-form"><h2>Create an account</h2><p>Customer users see only their own company's records. Staff roles work within this organization.</p>
+@if(Creating){<section class="panel workspace-form"><h2>Create an account</h2><p>Customer users see only their own company's records. Staff roles work within this organization.</p>
 <form @onsubmit="Create" @onsubmit:preventDefault aria-busy="@Model.Busy">
 <fieldset class="form-fields" disabled="@(!InteractiveReady || Model.Busy)">
 <div class="form-grid">
@@ -23,18 +23,19 @@ else
 </div>
 <label class="checkbox-field"><input type="checkbox" @bind="Model.Input.EmailOwnershipVerified" required /> I have verified this person's identity and email ownership.</label>
 <button class="button primary" type="submit" disabled="@Model.Busy">@(Model.Busy ? "Saving…" : "Create account")</button>
-</fieldset></form></section>
-<section class="panel workspace-form"><h2>Workspace members</h2><p>Showing up to 100 members. Disabling access prevents their next workspace operation.</p>
+</fieldset></form></section>}
+@if(!Creating){<section class="panel workspace-form"><h2>Workspace members</h2><p>Showing up to 100 members. Disabling access prevents their next workspace operation.</p>
 @if (Model.Users.Count == 0) { <p>No members to display.</p> }
 else { <div class="user-list">@foreach (var user in Model.Users) { <article class="user-row" @key="user.MembershipId"><div><strong>@user.DisplayName</strong><p>@user.Email</p><small>@user.Role · @(user.IsActive ? "Active" : "Disabled")</small></div>@if (user.Role != "Owner") { <button type="button" class="button secondary" disabled="@Model.Busy" @onclick="() => Model.ChangeAccessAsync(user)">@(user.IsActive ? "Disable access" : "Enable access")<span class="sr-only"> for @user.DisplayName</span></button> }</article> }</div> }
-</section>
+</section>}
 </div>
 }
 @code {
+ [Parameter]public bool Creating{get;set;}
  private UserAdministrationViewModel Model=default!;
  private bool InteractiveReady;
  protected override void OnAfterRender(bool firstRender){if(firstRender){InteractiveReady=true;StateHasChanged();}}
- private static readonly string[] Roles=["Admin","Technical","Customer"];
+ private static readonly string[] Roles=["Admin","Technical Developer","Technical Support","Sales","Sales Manager","Customer"];
  private IReadOnlyList<string> CustomerOptions=>Model.Customers.Select(x=>$"{x.Name} · {x.Email}").ToArray();
  private string CustomerLabel=>Model.Customers.Where(x=>x.Id==Model.Input.CustomerId).Select(x=>$"{x.Name} · {x.Email}").FirstOrDefault()??"Choose a customer";
  protected override async Task OnInitializedAsync(){Model=new(Service,Workspace);await Model.LoadAsync();}

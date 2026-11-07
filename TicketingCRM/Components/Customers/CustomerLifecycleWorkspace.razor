@@ -1,16 +1,56 @@
 @using TicketingCRM.ViewModels
 @inject TicketingCRM.Domain.Customers.Interfaces.ICustomerLifecycleService Service
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
 <OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
-@if(Model.Data is {} data){
-<div class="page-heading"><div><p class="eyebrow">CUSTOMER RELATIONSHIP</p><h1>@data.Customer.Name</h1><p>@data.Customer.Email · @data.Customer.CompanyNumber</p></div><a class="button secondary" href="/customers">All customers</a></div>
-<div class="customer-summary"><section class="panel workspace-form"><h2>Sales and subscriptions</h2><p>@if(data.CanManage){<span>@data.Opportunities.Count opportunities · </span>}@data.Contracts.Count contracts · @data.Subscriptions.Count subscriptions</p>@if(data.CanManage){<a class="button secondary" href="/sales">Manage sales pipeline</a>} <a class="button secondary" href="/contracts">Manage contracts and purchases</a></section><section class="panel workspace-form"><h2>Technical support</h2><p>@data.Support.Count reports</p><ul>@foreach(var ticket in data.Support){<li @key="ticket.Id"><a href="@($"/support/{ticket.Id}")">@ticket.Reference · @ticket.Title</a> · @ticket.Stage</li>}</ul><a href="/support">Support workspace</a></section></div>
-@if(data.CanManage){<section class="panel workspace-form"><h2>Customer account onboarding</h2>@if(data.Invitations.Count==0){<p>Choose a won opportunity and an active contract with purchased software. The customer chooses their own password through an expiring email link.</p><div class="form-grid"><SoulDropdown Label="Won opportunity" Options="Model.Opportunities" @bind-Value="Model.Opportunity" /><SoulDropdown Label="Active contract" Options="Model.Contracts" @bind-Value="Model.Contract" /></div><button class="button primary" @onclick="Model.FinalizeAsync" disabled="@Model.Busy">Finalize &amp; queue account invitation</button>}<ul>@foreach(var invite in data.Invitations){<li @key="invite.Id">@(invite.Accepted?"Account activated":"Invitation prepared") · expires @invite.ExpiresAtUtc.ToString("u") @if(!invite.Accepted){<button class="button secondary" disabled="@Model.Busy" @onclick="()=>Model.ReissueAsync(invite.Id)">Reissue password-setup invitation</button>}</li>}</ul></section>}
-@if(data.CanManage||Technical){<section class="panel workspace-form"><h2>Record a sales or technical activity</h2><div class="form-grid"><SoulDropdown Label="Activity type" Options="ActivityKinds" @bind-Value="Model.Kind" /><div class="soul-field"><label for="activity-subject">Subject</label><input id="activity-subject" class="soul-input" @bind="Model.Subject" maxlength="200" /></div><SoulDateTimePicker Label="Follow-up at UTC" UseUtc="true" @bind-Value="Model.FollowUp" /><div class="soul-field"><label for="activity-notes">Internal notes</label><textarea id="activity-notes" class="soul-input" @bind="Model.Notes" maxlength="4000"></textarea></div></div><button class="button primary" @onclick="Model.RecordAsync" disabled="@Model.Busy">Record activity</button></section><section class="panel workspace-form"><h2>Activity timeline</h2><ol>@foreach(var activity in data.Activities){<li @key="activity.Id"><strong>@activity.Kind · @activity.Subject</strong><p>@activity.Notes</p><time>@activity.OccurredAtUtc.ToString("u")</time>@if(activity.FollowUpAtUtc is {} due){<p>Follow-up: @due.ToString("u")</p>}</li>}</ol></section>}
+@if(Model.Data is {} data)
+{
+ <div class="page-heading page-enter"><div><p class="eyebrow">CUSTOMER RELATIONSHIP</p><h1>@data.Customer.Name</h1><p>@data.Customer.Email · @data.Customer.CompanyNumber</p></div><a class="button secondary" href="/customers">All customers</a></div>
+ <nav class="workflow-tabs page-enter" aria-label="Customer views">@foreach(var tab in Tabs.Where(x=>x.Key!="orders"||CanSeeOrders)){<a href="@Link(tab.Key)" aria-current="@(Section == tab.Key ? "page" : null)">@tab.Value</a>}@if(data.CanRecordActivity){<a href="@Link("activities")" aria-current="@(Section == "activities" ? "page" : null)">Activity history</a><a href="@Link("record-activity")" aria-current="@(Section == "record-activity" ? "page" : null)">Record activity</a>}@if(data.CanManage){<a href="@Link("onboarding")" aria-current="@(Section == "onboarding" ? "page" : null)">Account onboarding</a>}</nav>
+ <div class="workflow-stack page-enter">
+ @if(Section == "overview")
+ {
+  <div class="workflow-details"><section class="panel workspace-form"><h2>Relationship details</h2><dl><dt>Joined</dt><dd>@(data.Customer.JoinedAtUtc is {} joined && joined != default ? joined.ToString("dd MMM yyyy HH:mm 'UTC'") : "Not recorded")</dd><dt>Contact</dt><dd>@data.Customer.Email</dd><dt>Company number</dt><dd>@data.Customer.CompanyNumber</dd></dl></section><section class="panel workspace-form"><h2>Customer account</h2><p>@data.Contracts.Count contracts · @data.Subscriptions.Count active entitlements</p><p>@data.Support.Count support tickets</p><a class="button secondary" href="@Link("software")">Owned software &amp; support terms</a></section></div>
+ }
+ else if(Section == "software")
+ {
+  <section class="panel workspace-form"><h2>Owned software and support</h2><p>Latest 100 product entitlements. License validity and support expiry are separate terms.</p>@foreach(var item in data.Software ?? []){<article class="form-record" @key="item.EntitlementId"><h3>@item.Name</h3><dl class="record-details"><dt>Product code</dt><dd>@item.ProductCode</dd><dt>Contract</dt><dd>@item.ContractReference</dd><dt>Starts</dt><dd>@item.StartsAtUtc.ToString("u")</dd><dt>License expiry</dt><dd>@(item.LicenseExpiresAtUtc?.ToString("u") ?? "No expiry recorded")</dd><dt>Support expiry</dt><dd>@(item.SupportExpiresAtUtc?.ToString("u") ?? "Not recorded")</dd><dt>Installation limit</dt><dd>@item.InstallationLimit</dd><dt>Status</dt><dd>@(item.Revoked ? "Revoked" : "Granted")</dd></dl></article>}@if(data.Software?.Count == 0){<p>No software entitlements recorded.</p>}</section>
+ }
+ else if(Section == "licenses")
+ {
+  <section class="panel workspace-form"><h2>License revisions</h2><p>Latest 100 revisions for this customer.</p>@foreach(var license in data.Licenses ?? []){<article class="form-record" @key="license.Id"><h3>@license.ProductName · revision @license.Revision</h3><p>@license.InstallationName · @license.Status</p><p>Issued @license.IssuedAtUtc.ToString("u") · expires @(license.ExpiresAtUtc?.ToString("u") ?? "No expiry recorded")</p>@if(license.Status == "Ready"){<a class="button secondary" href="@($"/api/licensing/revisions/{license.Id}/download")" data-enhance-nav="false" data-transfer-download data-transfer-filename="@($"license-{license.Id:N}.license")">Download license</a>}</article>}@if(data.Licenses?.Count == 0){<p>No licenses issued.</p>}</section>
+ }
+ else if(Section == "contracts")
+ {
+  <section class="panel workspace-form"><h2>Contracts</h2>@foreach(var contract in data.Contracts){<article class="form-record" @key="contract.Id"><h3><a href="/contracts/@contract.Id">@contract.Reference</a></h3><p>@contract.Status · starts @contract.StartsAtUtc.ToString("u") · ends @(contract.EndsAtUtc?.ToString("u") ?? "No expiry")</p><a class="button secondary" href="/contracts/@contract.Id">Full contract details</a></article>}@if(data.Contracts.Count == 0){<p>No contracts recorded.</p>}</section>
+ }
+ else if(Section == "orders"){<TicketingCRM.Components.Commerce.CustomerOrders CustomerId="CustomerId" />}
+ else if(Section == "support")
+ {
+  <section class="panel workspace-form"><h2>Support tickets</h2>@foreach(var ticket in data.Support){<article class="form-record" @key="ticket.Id"><h3><a href="/support/@ticket.Id">@ticket.Reference · @ticket.Title</a></h3><p>@ticket.Stage</p></article>}@if(data.Support.Count == 0){<p>No support tickets.</p>}</section>
+ }
+ else if(Section == "activities" && data.CanRecordActivity)
+ {
+  <section class="panel workspace-form"><h2>Activity history</h2><a class="button primary" href="@Link("record-activity")">Record activity</a><ol>@foreach(var activity in data.Activities){<li @key="activity.Id"><strong>@activity.Kind · @activity.Subject</strong><p>@activity.Notes</p><time>@activity.OccurredAtUtc.ToString("u")</time>@if(activity.FollowUpAtUtc is {} due){<p>Follow-up @due.ToString("u")</p>}</li>}</ol></section>
+ }
+ else if(Section == "record-activity" && data.CanRecordActivity)
+ {
+  <section class="panel workspace-form"><h2>Record activity</h2><form @onsubmit="Model.RecordAsync" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@(Model.Busy || !RendererInfo.IsInteractive)"><div class="form-grid"><SoulDropdown Label="Activity type" Options="ActivityKinds" @bind-Value="Model.Kind" /><div class="soul-field"><label for="activity-subject">Subject</label><input id="activity-subject" class="soul-input" @bind="Model.Subject" required maxlength="200" /></div><SoulDateTimePicker Label="Follow-up at UTC" UseUtc="true" @bind-Value="Model.FollowUp" /><div class="soul-field"><label for="activity-notes">Internal notes</label><textarea id="activity-notes" class="soul-input" @bind="Model.Notes" maxlength="4000"></textarea></div></div><button class="button primary" type="submit">Save activity</button><a class="button secondary" href="@Link("activities")">Activity history</a></fieldset></form></section>
+ }
+ else if(Section == "onboarding" && data.CanManage)
+ {
+  <section class="panel workspace-form"><h2>Customer account onboarding</h2>@if(data.Invitations.Count == 0){<p>Choose a won opportunity and an active contract with purchased software. The customer sets their own password through an expiring email link.</p><div class="form-grid"><SoulDropdown Label="Won opportunity" Options="Model.Opportunities" @bind-Value="Model.Opportunity" /><SoulDropdown Label="Active contract" Options="Model.Contracts" @bind-Value="Model.Contract" /></div><button class="button primary" @onclick="Model.FinalizeAsync" disabled="@Model.Busy">Finalize &amp; queue invitation</button>}@foreach(var invitation in data.Invitations){<article class="form-record" @key="invitation.Id"><p>@(invitation.Accepted ? "Account activated" : "Invitation queued") · expires @invitation.ExpiresAtUtc.ToString("u")</p>@if(!invitation.Accepted){<button class="button secondary" disabled="@Model.Busy" @onclick="() => Model.ReissueAsync(invitation.Id)">Reissue invitation</button>}</article>}</section>
+ }
+ else{<p role="alert">This customer view is unavailable for your membership.</p>}
+ </div>
 }
 else if(!Model.Busy){<p>The customer is unavailable for this membership.</p>}
 @code {
- [Parameter]public Guid CustomerId{get;set;}
- [Inject]public TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor{get;set;}=default!;
- private CustomerLifecycleViewModel Model=null!;private bool Technical=>Actor.Role=="Technical";private IReadOnlyList<string> ActivityKinds=>Technical?["Note","Technical"]:CustomerLifecycleViewModel.Kinds;
- protected override async Task OnParametersSetAsync(){Model=new(Service,CustomerId);await Model.LoadAsync();}
+ [Parameter] public Guid CustomerId {get;set;}
+ [Parameter] public string Section {get;set;} = "overview";
+ private bool CanSeeOrders=>Actor.CustomerId is not null||Actor.Role is "Owner" or "Admin" or "Sales" or "Sales Manager";
+ private CustomerLifecycleViewModel Model = default!;
+ private static readonly IReadOnlyDictionary<string,string> Tabs = new Dictionary<string,string> { ["overview"]="Overview",["software"]="Software & support",["licenses"]="Licenses",["contracts"]="Contracts",["orders"]="Orders",["support"]="Support" };
+ private IReadOnlyList<string> ActivityKinds => Actor.Role is "Technical" or "Technical Support" or "Technical Developer" ? ["Note","Technical"] : CustomerLifecycleViewModel.Kinds;
+ private string Link(string view) => view == "overview" ? $"/customers/{CustomerId}" : $"/customers/{CustomerId}/{view}";
+ protected override async Task OnParametersSetAsync(){Model = new(Service,CustomerId);await Model.LoadAsync();}
 }

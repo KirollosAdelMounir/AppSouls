@@ -30,7 +30,11 @@ public sealed class DatabaseMaintenanceAuthorizationTests
     }
     private sealed class DeniedSettings : IServerSettingsService
     {
+        public Task<TicketingCRM.Domain.Delivery.DTOs.ArtifactScannerAvailability> CheckScannerAsync(CancellationToken cancellationToken = default) => throw new UnauthorizedAccessException();
         public Task<ServerSettingsDto> GetAsync(CancellationToken cancellationToken = default) => throw new UnauthorizedAccessException();
+        public Task<TicketingCRM.Domain.Administration.DTOs.SetupConnectionResult> TestEmailAsync(UpdateEmailSettingsRequest request, CancellationToken cancellationToken = default) => throw new UnauthorizedAccessException();
+        public Task UpdatePublicAddressAsync(UpdatePublicAddressRequest request, CancellationToken cancellationToken = default) => throw new UnauthorizedAccessException();
+        public Task UpdateOrganizationAsync(UpdateOrganizationRequest request, CancellationToken cancellationToken = default) => throw new UnauthorizedAccessException();
         public Task UpdateDatabaseAsync(UpdateDatabaseSettingsRequest request, CancellationToken cancellationToken = default) => throw new UnauthorizedAccessException();
         public Task UpdateEmailAsync(UpdateEmailSettingsRequest request, CancellationToken cancellationToken = default) => throw new UnauthorizedAccessException();
         public Task UpdateIntegrationAsync(UpdateIntegrationSettingsRequest request, CancellationToken cancellationToken = default) => throw new UnauthorizedAccessException();

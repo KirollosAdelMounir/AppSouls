@@ -43,6 +43,11 @@ public sealed class SetupController(IServerSetupService setup,IHostApplicationLi
         var result=await setup.TestDatabaseAsync(request,cancellationToken);return result.Success?Ok(result):BadRequest(result);
     }
     /// <summary>Check TLS SMTP and configured authentication without sending email.</summary>
+    [HttpPost("test-scanner")]
+    public async Task<IActionResult> TestScanner(CancellationToken cancellationToken)
+    {
+        var result=await setup.TestScannerAsync(cancellationToken);return result.Success?Ok(result):BadRequest(result);
+    }
     [HttpPost("test-email")]
     public async Task<IActionResult> TestEmail([FromForm] CompleteServerSetupRequest request,CancellationToken cancellationToken)
     {

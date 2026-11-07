@@ -10,10 +10,11 @@
     </aside>
     <div class="workspace-body">
         <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> @SectionTitle</span><div class="topbar-actions"><div class="appearance-control"><SoulDropdown Id="theme-choice" Label="Appearance" ClientTheme="true" Options="ThemeOptions" /></div><ProfileMenu /></div></header>
-        <main id="main-content" tabindex="-1"><div class="view-content">@Body</div></main>
+        <AuthorizeView><ChatAlerts @rendermode="InteractiveServer" /></AuthorizeView>
+        <main id="main-content" tabindex="-1" class="@(Navigation.ToBaseRelativePath(Navigation.Uri).Split('/')[0] == "settings" ? "settings-main" : "")"><div class="view-content">@Body</div></main>
         <footer>App Souls <span>CRM &amp; Licensing by Tetrarchia</span></footer>
     </div>
 </div>
 <div id="blazor-error-ui" role="alert">The connection encountered an error. <a href=".">Reload workspace</a></div>
 
-@code { private static readonly string[] ThemeOptions = ["Light", "Dark", "System"]; private string SectionTitle => Navigation.ToBaseRelativePath(Navigation.Uri).Split('/')[0] switch { "customers" => "Customers", "sales" => "Sales pipeline", "contracts" => "Orders & contracts", "products" => "Software catalog", "downloads" => "Software downloads", "license-models" => "License models", "licenses" => "Licenses", "installations" => "Installations", "support" => "Support", "settings" => "Settings", "users" => "Users & access", _ => "Overview" }; }
+@code { private static readonly string[] ThemeOptions = ["Light", "Dark", "System"]; private string SectionTitle => Navigation.ToBaseRelativePath(Navigation.Uri).Split('/')[0] switch { "customers" => "Customers", "sales" => "Sales pipeline", "leads" => "Leads", "opportunities" => "Opportunities", "orders" => "Orders", "invoices" => "Invoices", "contracts" => "Orders & contracts", "products" => "Software catalog", "downloads" => "Software downloads", "license-models" => "License models", "licenses" => "Licenses", "installations" => "Installations", "support" => "Support", "settings" => "System settings", "users" => "Users & access", _ => "Overview" }; }

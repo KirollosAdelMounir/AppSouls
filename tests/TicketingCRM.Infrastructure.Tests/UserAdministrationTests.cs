@@ -81,7 +81,7 @@ public sealed class UserAdministrationTests
         var list = await service.ListAsync(); var member = list.Single(x => x.MembershipId == id); var owner = list.Single(x => x.UserId == f.Owner);
         await Assert.ThrowsAsync<ArgumentException>(() => service.ChangeAccessAsync(new(owner.MembershipId, owner.Version, false)));
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.ChangeAccessAsync(new(member.MembershipId, Guid.NewGuid(), false)));
-        var directory = new SignInDirectory(new Factory(f.Tenant));
+        var directory = new TicketingCRM.DataConnection.Repository.SignInDirectory(new Factory(f.Tenant));
         await using var db = Open(f.Tenant); var user = await db.Users.SingleAsync(x => x.Id == member.UserId);
         Assert.NotNull(await directory.FindAsync(user.Id, user.SecurityStamp!));
         await service.ChangeAccessAsync(new(member.MembershipId, member.Version, false));
@@ -96,7 +96,7 @@ public sealed class UserAdministrationTests
     {
         var f = await Fixture.Create(); var other = await Fixture.Create();
         await using (var db = Open(other.Tenant)) { db.TenantMemberships.Add(new TenantMembership { TenantId = other.Tenant, UserId = f.Owner, Role = "Technical" }); await db.SaveChangesAsync(); }
-        var directory = new SignInDirectory(new Factory(Guid.Empty)); var account = await directory.FindAsync(f.Owner, f.Stamp);
+        var directory = new TicketingCRM.DataConnection.Repository.SignInDirectory(new Factory(Guid.Empty)); var account = await directory.FindAsync(f.Owner, f.Stamp);
         Assert.NotNull(account); Assert.Equal(2, account.Workspaces.Count); Assert.Contains(account.Workspaces, x => x.TenantId == other.Tenant && x.Role == "Technical");
         Assert.All(account.Workspaces, x => Assert.Equal("Administration tests", x.Name)); Assert.False(account.TwoFactorEnabled);
         Assert.Null(await directory.FindAsync(f.Owner, "wrong-stamp"));

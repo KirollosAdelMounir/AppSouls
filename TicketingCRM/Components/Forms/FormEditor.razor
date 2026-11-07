@@ -1,0 +1,27 @@
+@using TicketingCRM.ViewModels
+<section class="panel forms-panel" aria-labelledby="new-form-heading">
+    <h2 id="new-form-heading">@(Model.Definition is null ? "Create a form" : "Edit draft")</h2>
+    <p>Choose from text, email, choices, numbers, ratings, phone, website and yes/no answers.</p>
+    <form @onsubmit="OnSave" @onsubmit:preventDefault>
+        <fieldset disabled="@(!RendererInfo.IsInteractive || Model.Busy)" class="forms-fieldset">
+            <div class="soul-field"><label for="form-title">Title</label><input id="form-title" class="soul-input" @bind="Model.Title" required maxlength="160" /></div>
+            <div class="soul-field"><label for="form-description">Description / privacy notice</label><textarea id="form-description" class="soul-input" @bind="Model.Description" maxlength="2000"></textarea></div>
+            @foreach (var question in Model.Questions)
+            {
+                <FormQuestionEditor Question="question" Model="Model" OnRemove="RemoveAsync" OnMove="MoveQuestion" @key="question.Key" />
+            }
+            <div class="forms-actions">
+                <button class="button secondary" type="button" @ref="AddButton" disabled="@(Model.Questions.Count >= 20)" @onclick="Model.AddQuestion">Add question</button>
+                <button class="button primary" type="submit">@(Model.Busy ? "Saving…" : "Save draft")</button>
+            </div>
+            <p class="availability">Up to 20 questions and 10,000 responses per form. Polls are anonymous and allow repeat participation.</p>
+        </fieldset>
+    </form>
+</section>
+@code {
+    private ElementReference AddButton;
+    private void MoveQuestion((FormQuestionModel Question, int Direction) move) => Model.MoveQuestion(move.Question, move.Direction);
+    private async Task RemoveAsync(FormQuestionModel question) { Model.RemoveQuestion(question); await AddButton.FocusAsync(); }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter, EditorRequired] public FormsViewModel Model { get; set; } = default!;
+}

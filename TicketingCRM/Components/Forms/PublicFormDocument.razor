@@ -1,0 +1,68 @@
+@using TicketingCRM.Domain.Forms.DTOs
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>@(Form?.Title ?? "Form") | App Souls</title>
+    <script src="/theme.js"></script><link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+<div class="account-shell"><AccountHeader />
+<main class="panel forms-panel public-collection page-enter">
+@if (Received)
+{
+    <h1>Thank you</h1><p role="status">Your response has been received.</p>
+}
+else if (Form is null)
+{
+    <h1>Form unavailable</h1><p>This form is closed or the link is invalid.</p>
+}
+else
+{
+    <h1>@Form.Title</h1><p class="form-description">@Form.Description</p>
+    @if (Error is not null) { <div class="feedback error" role="alert" tabindex="-1" autofocus>@Error Your answers are kept below.</div> }
+    <p class="availability">Anyone with this link can respond. Do not include passwords, payment details or other sensitive information.</p>
+    <form method="post" action="/f/@PublicKey" data-public-collection>
+        <input type="hidden" name="__RequestVerificationToken" value="@AntiforgeryToken" />
+        <input type="hidden" name="OperationId" value="@OperationId" />
+        @foreach (var question in Form.Fields)
+        {
+            var value = Answers.GetValueOrDefault(question.Key) ?? "";
+            <div class="public-question" @key="question.Key">
+            @if (question.Type is "Choice" or "Rating" or "Yes / No")
+            {
+                <SoulDropdown Id="@($"answer-{question.Key}")" Label="@(question.Label + (question.Required ? " (required)" : " (optional)"))" Options="@(question.Type == "Rating" ? new[] { "1", "2", "3", "4", "5" } : question.Type == "Yes / No" ? new[] { "Yes", "No" } : question.Options)" Value="value" StaticFieldName="@($"Answers[{question.Key}]")" />
+            }
+            else
+            {
+                <div class="soul-field">
+                    <label for="answer-@question.Key">@question.Label @(question.Required ? "(required)" : "(optional)")</label>
+                    @if (question.Type == "Long text")
+                    {
+                        <textarea id="answer-@question.Key" name="Answers[@question.Key]" class="soul-input" required="@question.Required" maxlength="2000">@value</textarea>
+                    }
+                    else
+                    {
+                        <input id="answer-@question.Key" name="Answers[@question.Key]" class="soul-input" type="@(question.Type switch { "Email" => "email", "Phone" => "tel", "Website" => "url", "Number" => "number", _ => "text" })" step="any" required="@question.Required" maxlength="@(question.Type == "Email" ? 254 : 500)" value="@value" />
+                    }
+                </div>
+            }
+            </div>
+        }
+        <button class="button primary" type="submit">Submit response</button>
+    </form>
+}
+</main></div>
+<script src="/public-forms.js"></script>
+</body>
+</html>
+@code {
+    [Parameter] public PublicFormDto? Form { get; set; }
+    [Parameter] public string PublicKey { get; set; } = "";
+    [Parameter] public string AntiforgeryToken { get; set; } = "";
+    [Parameter] public Guid OperationId { get; set; }
+    [Parameter] public Dictionary<string, string> Answers { get; set; } = [];
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool Received { get; set; }
+}

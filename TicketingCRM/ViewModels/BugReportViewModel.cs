@@ -4,6 +4,7 @@ namespace TicketingCRM.ViewModels;
 
 public sealed class BugReportViewModel : IValidatableObject
 {
+    public string Urgency {get;set;} = "Medium";
     public string Kind { get; set; } = "Bug";
     [Required, StringLength(160)] public string Title { get; set; } = "";
     [Required, StringLength(160)] public string Product { get; set; } = "";

@@ -1,0 +1,59 @@
+@implements IAsyncDisposable
+@inject TicketingCRM.Domain.Support.Interfaces.ISupportConversationService Service
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
+@inject IJSRuntime JS
+<div class="chat-alerts">
+ <button @ref="SoundButton" class="button secondary" type="button" @onclick="ToggleSound" aria-pressed="@SoundEnabled"><AppIcon Name="bell" />Chat sound: @(SoundEnabled ? "on" : "off")</button>
+ @if(Latest is {} chat){<div class="chat-alert page-enter" role="status" aria-live="polite"><span>New live-chat message.</span><a class="button secondary" href="/support/chats/@chat">Open conversation</a><button class="button secondary" type="button" @onclick="Dismiss">Dismiss</button></div>}
+ @if(Error is not null){<p role="status">@Error</p>}
+</div>
+@code {
+ private IJSObjectReference? Module;
+ private readonly CancellationTokenSource Lifetime=new();
+ private Task? Polling;
+ private ElementReference SoundButton;
+ private Guid? Latest;
+ private (Guid Chat,Guid Message)? LastRead;
+ private sealed record DisplayState(string? ChatId,string? ReadingChatId,string? ReadingMessageId);
+ private bool SoundEnabled=true;
+ private string? Error;
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+  if(!firstRender||!RendererInfo.IsInteractive)return;
+  Module=await JS.InvokeAsync<IJSObjectReference>("import","./"+Assets["Components/Shared/ChatAlerts.razor.js"]);
+  SoundEnabled=await Module.InvokeAsync<bool>("initialize",$"{Actor.UserId:N}:{Actor.TenantId:N}",Assets["sounds/NotificationAppSouls.mp3"]);
+  Polling=Poll();
+  StateHasChanged();
+ }
+ private async Task Poll()
+ {
+  try
+  {
+   while(!Lifetime.IsCancellationRequested)
+   {
+    var messages=await Service.ChatNotificationsAsync(Lifetime.Token);
+    var display=await Module!.InvokeAsync<DisplayState>("check",Lifetime.Token,messages,SoundEnabled);
+    if(Guid.TryParse(display.ChatId,out var id))await InvokeAsync(()=>{Latest=id;StateHasChanged();});
+    if(Guid.TryParse(display.ReadingChatId,out var reading)&&Guid.TryParse(display.ReadingMessageId,out var message)&&LastRead!=(reading,message))
+    {
+     try
+     {
+      await Service.MarkChatReadAsync(reading,message,Lifetime.Token);LastRead=(reading,message);
+      await Module!.InvokeVoidAsync("updateCounts",Lifetime.Token,await Service.ChatNotificationsAsync(Lifetime.Token));
+     }
+     catch(OperationCanceledException)when(Lifetime.IsCancellationRequested){throw;}
+     catch(UnauthorizedAccessException){throw;}
+     catch(Exception){/* A concurrent tab may create the same receipt. Retry next poll. */}
+    }
+    await Task.Delay(TimeSpan.FromSeconds(5),Lifetime.Token);
+   }
+  }
+  catch(OperationCanceledException)when(Lifetime.IsCancellationRequested){}
+  catch(JSDisconnectedException){}
+  catch(UnauthorizedAccessException){await InvokeAsync(()=>{Latest=null;Error="Your account is disabled or no longer has access. Please contact the company.";StateHasChanged();});}
+  catch(Exception){await InvokeAsync(()=>{Error="Chat alerts paused. Reload to reconnect.";StateHasChanged();});}
+ }
+ private async Task ToggleSound(){SoundEnabled=!SoundEnabled;if(Module is not null)await Module.InvokeVoidAsync("setSound",SoundEnabled);}
+ private async Task Dismiss(){Latest=null;await SoundButton.FocusAsync();}
+ public async ValueTask DisposeAsync(){await Lifetime.CancelAsync();if(Polling is not null)await Polling;if(Module is not null)try{await Module.InvokeVoidAsync("dispose");await Module.DisposeAsync();}catch(JSDisconnectedException){}Lifetime.Dispose();}
+}

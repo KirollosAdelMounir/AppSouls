@@ -1,0 +1,53 @@
+name: Build App Souls installers
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'MSI version: major.minor.build'
+        required: true
+        default: '1.0.0'
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build MSI and one-file setup
+        shell: powershell
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: ./tools/build-windows-installer.ps1 -Version $env:PACKAGE_VERSION
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: AppSouls-Windows-unsigned
+          path: |
+            artifacts/installers/AppSouls.msi
+            artifacts/installers/AppSoulsSetup.exe
+          if-no-files-found: error
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Publish and package
+        env:
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: |
+          python -c 'import os,re; assert re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+", os.environ["PACKAGE_VERSION"])'
+          dotnet publish TicketingCRM/TicketingCRM.csproj -c Release -r linux-x64 --self-contained false -p:UseAppHost=false -p:Version="$PACKAGE_VERSION" -o artifacts/server
+          python tools/build-linux-installer.py --source artifacts/server --output artifacts/installers/AppSoulsSetup-linux-x64.sh
+          sh artifacts/installers/AppSoulsSetup-linux-x64.sh --plan
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: AppSouls-Linux-x64
+          path: artifacts/installers/AppSoulsSetup-linux-x64.sh
+          if-no-files-found: error

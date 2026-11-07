@@ -1,0 +1,9 @@
+@using TicketingCRM.ViewModels
+<div class="workflow-stack">
+@foreach(var line in Model.Lines)
+{
+ <fieldset class="form-question" @key="line.Key"><legend>Line @(Model.Lines.IndexOf(line)+1)</legend><SoulDropdown Label="Software (optional)" Options="Model.ProductOptions" Value="@Model.ProductLabel(line)" ValueChanged="value=>Model.ChooseProduct(line,value)" /><div class="soul-field"><label for="description-@line.Key">Description</label><textarea id="description-@line.Key" class="soul-input" @bind="line.Description" required maxlength="500"></textarea></div><div class="form-grid"><div class="soul-field"><label for="quantity-@line.Key">Quantity</label><input id="quantity-@line.Key" class="soul-input" type="number" min="0.001" max="1000000" step="0.001" @bind="line.Quantity" required /></div><div class="soul-field"><label for="unit-@line.Key">Unit price</label><input id="unit-@line.Key" class="soul-input" type="number" min="0" max="999999999.99" step="0.01" @bind="line.UnitPrice" required /></div><div class="soul-field"><label for="discount-@line.Key">Discount (%)</label><input id="discount-@line.Key" class="soul-input" type="number" min="0" max="100" step="0.01" @bind="line.Discount" required /></div><div class="soul-field"><label for="tax-@line.Key">Tax (%)</label><input id="tax-@line.Key" class="soul-input" type="number" min="0" max="100" step="0.01" @bind="line.Tax" required /></div></div><button type="button" class="button secondary" disabled="@(Model.Lines.Count<=1)" @onclick="()=>Remove(line)">Remove line</button></fieldset>
+}
+<button type="button" class="button secondary" @ref="AddButton" disabled="@(Model.Lines.Count>=100)" @onclick="Model.AddLine">Add line</button>
+</div>
+@code{[Parameter,EditorRequired]public CommerceViewModel Model{get;set;}=default!;private ElementReference AddButton;private async Task Remove(CommercialLineDraft line){Model.RemoveLine(line);await AddButton.FocusAsync();}}

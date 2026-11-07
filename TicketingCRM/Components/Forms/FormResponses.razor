@@ -1,0 +1,28 @@
+@using TicketingCRM.ViewModels
+<section class="panel forms-panel page-enter" aria-labelledby="responses-heading">
+    <h2 id="responses-heading">@Model.Submissions!.Title · Responses</h2>
+    <p>Private to your organization's owners and administrators. Dates are UTC.</p>
+    @if (Model.Submissions.Items.Count == 0) { <p>No responses yet.</p> }
+    @foreach (var response in Model.Submissions.Items)
+    {
+        <article class="form-record" @key="response.Id">
+            <h3><time datetime="@response.SubmittedAtUtc.ToString("O")">@response.SubmittedAtUtc.ToString("yyyy-MM-dd HH:mm 'UTC'")</time></h3>
+            <dl class="form-answers">
+                @foreach (var question in Model.Submissions.Fields)
+                {
+                    <dt>@question.Label</dt><dd>@(response.Answers.GetValueOrDefault(question.Key) is { Length: > 0 } answer ? answer : "No answer")</dd>
+                }
+            </dl>
+        </article>
+    }
+    <div class="forms-actions" aria-label="Response pages">
+        <button class="button secondary" disabled="@(Model.Busy || Model.Submissions.Page <= 1)" @onclick="() => OnPageChanged.InvokeAsync(Model.Submissions.Page - 1)">Previous</button>
+        <span>Page @Model.Submissions.Page</span>
+        <button class="button secondary" disabled="@(Model.Busy || !Model.Submissions.HasMore)" @onclick="() => OnPageChanged.InvokeAsync(Model.Submissions.Page + 1)">Next</button>
+        <button class="button secondary" disabled="@Model.Busy" @onclick="() => OnPageChanged.InvokeAsync(Model.Submissions.Page)">Refresh</button>
+    </div>
+</section>
+@code {
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+    [Parameter, EditorRequired] public FormsViewModel Model { get; set; } = default!;
+}

@@ -4,7 +4,9 @@ CRM and software licensing by Tetrarchia. The implementation is under active dev
 
 ## Run locally
 
-Use the .NET 10 SDK. Build with `dotnet build TicketingCRM.slnx`, then run `dotnet run --project TicketingCRM`. The default `guided-setup` profile opens the local development server at `http://localhost:5176` and keeps its vault under the local application-data `appsouls/guided-setup` directory. Earlier development databases and vaults are preserved separately.
+Use the .NET 10 SDK for development. For server deployment, build the single-file Linux shell installer or Windows MSI/setup wizard using the [distribution build instructions](docs/deployment/server-installation.md#single-file-distributions-and-windows-msi). Extracted publish packages also retain `install/install-server.sh` and `install/install-server.ps1`. These installers detect the app’s required runtime channel, install .NET plus nginx/IIS and ClamAV, copy the app and create the HTTPS site. Guided server configuration retains database, initial administrator and email setup. See [server installation and qualification](docs/deployment/server-installation.md). The scanner-only dependency helpers remain available for existing hosts; local ClamAV on port 3310 works without a generic integration entry.
+
+Build with `dotnet build TicketingCRM.slnx`, then run `dotnet run --project TicketingCRM`. The default `guided-setup` profile opens the local development server at `http://localhost:5176` and keeps its vault under the local application-data `appsouls/guided-setup` directory. Earlier development databases and vaults are preserved separately.
 
 1. Open `/setup`. First-time setup opens directly and does not require an authorization token.
 2. Prepare your administrator: organization, name, email, password and confirmation. This creates a protected temporary file containing a password hash, before any schema migration or account insertion.
@@ -46,7 +48,7 @@ The `/sales` workspace now supports leads, opportunities, owner assignment, UTC 
 
 ## Customer delivery milestone
 
-The top-right profile menu opens account settings/security and sign-out. The dedicated `/license-models` builder maps typed attributes to authorized customer and subscription values. `/customers/{id}` connects sales activities, contracts, subscriptions, support and expiring customer account invitations. `/downloads` supports quarantined installation uploads, malware-scan publication, signed manifests and subscription-authorized downloads. SMTP and the local scanner require server configuration; automatic updater clients and production qualification remain future work. See [customer delivery workflows](docs/customer-delivery/workflows.md) and [security boundaries](docs/security/customer-delivery-threat-model.md).
+The top-right profile menu opens account settings/security and sign-out. The dedicated `/license-models` builder maps typed attributes to authorized customer and subscription values. `/customers/{id}` connects sales activities, contracts, subscriptions, support and expiring customer account invitations. `/downloads` supports quarantined installation uploads, malware-scan publication, signed manifests and subscription-authorized downloads. SMTP requires server configuration; the local scanner has a built-in default and a bundled dependency installer. Automatic updater clients and production qualification remain future work. See [customer delivery workflows](docs/customer-delivery/workflows.md) and [security boundaries](docs/security/customer-delivery-threat-model.md).
 
 ## License
 

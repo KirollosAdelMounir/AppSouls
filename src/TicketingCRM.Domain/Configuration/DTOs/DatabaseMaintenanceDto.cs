@@ -4,6 +4,12 @@ public sealed class DatabaseMaintenanceRequest
 {
     public string Provider { get; set; } = "PostgreSql";
     public string ConnectionString { get; set; } = "";
+    public string DatabaseServer { get; set; } = "";
+    public int DatabasePort { get; set; } = 5432;
+    public string DatabaseCatalog { get; set; } = "";
+    public string DatabaseUserName { get; set; } = "";
+    public string? DatabasePassword { get; set; }
+    public bool DatabaseUseTls { get; set; } = true;
     public string Mode { get; set; } = "Switch";
     public bool ConfirmMaintenance { get; set; }
 }

@@ -10,10 +10,11 @@
         <DataAnnotationsValidator />
         <div @ref="Errors" tabindex="-1" class="report-errors"><ValidationSummary /></div>
         <div class="control-grid">
+            <SoulDropdown Label="Urgency" Options="Urgencies" @bind-Value="Model.Urgency" />
             <SoulDropdown Id="report-kind" Label="Report type" Options="Kinds" @bind-Value="Model.Kind" />
             <div><SoulDropdown Id="report-product" Label="Software product" Options="ProductNames" @bind-Value="Model.Product" /><ValidationMessage For="() => Model.Product" /></div>
             <div class="soul-field report-wide"><label for="report-title">Title</label><input id="report-title" class="soul-input" @bind="Model.Title" @bind:event="oninput" @bind:after="DraftChanged" maxlength="160" /><ValidationMessage For="() => Model.Title" /></div>
-            <div class="soul-field report-wide"><label for="report-description">Description</label><textarea id="report-description" class="soul-input" @bind="Model.Description" @bind:event="oninput" @bind:after="DraftChanged" maxlength="4000" rows="4"></textarea><ValidationMessage For="() => Model.Description" /></div>
+            <div class="report-wide"><RichTextEditor Id="report-description" Label="Description" @bind-Value="Model.Description" MaxLength="4000" Required="true" /><ValidationMessage For="() => Model.Description" /></div>
             <div class="soul-field"><label for="report-version">Application version</label><input id="report-version" class="soul-input" @bind="Model.Version" @bind:event="oninput" @bind:after="DraftChanged" maxlength="100" /><ValidationMessage For="() => Model.Version" /></div>
             <div class="soul-field"><label for="report-environment">Environment</label><input id="report-environment" class="soul-input" @bind="Model.Environment" @bind:event="oninput" @bind:after="DraftChanged" maxlength="300" /><ValidationMessage For="() => Model.Environment" /></div>
             <div class="soul-field report-wide"><label for="report-steps">Steps to reproduce @(Model.Kind == "Bug" ? "(required)" : "(optional)")</label><textarea id="report-steps" class="soul-input" @bind="Model.Steps" @bind:event="oninput" @bind:after="DraftChanged" maxlength="2000" rows="3"></textarea><ValidationMessage For="() => Model.Steps" /></div>
@@ -42,13 +43,14 @@
 </div>
 @code {
     private BugReportViewModel Model { get; } = new();
-    private static readonly string[] Kinds = ["Bug", "Issue"];
+    private static readonly string[] Kinds = ["Bug", "Issue", "Question", "Critical error"];
+    private static readonly string[] Urgencies = ["Low","Medium","High","Extreme"];
     private ElementReference Errors;
     private bool Reviewed;
     private bool Busy; private string? Error; private Guid OperationId=Guid.NewGuid();
     private IReadOnlyList<string> ProductNames=[];
     protected override async Task OnInitializedAsync(){try{var data=await Workspace.GetAsync();ProductNames=data.Products.Select(x=>$"{x.Name} · {x.Id}").ToList();}catch{Error="Software list is unavailable.";}}
-    private async Task Submit(){if(Busy)return;Busy=true;Error=null;try{var product=Guid.Parse(Model.Product.Split('·').Last().Trim());var receipt=await Reports.SubmitAsync(new(OperationId,product,Model.Kind=="Bug"?TicketingCRM.Domain.Support.Models.SupportReportKind.Bug:TicketingCRM.Domain.Support.Models.SupportReportKind.Issue,Model.Title,Model.Description,Model.Steps,Model.Expected,Model.Actual,Model.Version,Model.Environment));Reviewed=true;Navigation.NavigateTo("/support/"+receipt.TicketId);}catch(ArgumentException e){Error=e.Message;}catch(UnauthorizedAccessException){Error="Your account cannot submit this report.";}catch{Error="Submission could not be confirmed. Retry with this draft; the operation ID prevents duplicates.";}finally{Busy=false;}}
+    private async Task Submit(){if(Busy)return;Busy=true;Error=null;try{var product=Guid.Parse(Model.Product.Split('·').Last().Trim());var receipt=await Reports.SubmitAsync(new(OperationId,product,Model.Kind switch { "Bug"=>TicketingCRM.Domain.Support.Models.SupportReportKind.Bug,"Question"=>TicketingCRM.Domain.Support.Models.SupportReportKind.Question,"Critical error"=>TicketingCRM.Domain.Support.Models.SupportReportKind.CriticalError,_=>TicketingCRM.Domain.Support.Models.SupportReportKind.Issue },Model.Title,Model.Description,Model.Steps,Model.Expected,Model.Actual,Model.Version,Model.Environment,Model.Urgency));Reviewed=true;Navigation.NavigateTo("/support/"+receipt.TicketId);}catch(ArgumentException e){Error=e.Message;}catch(UnauthorizedAccessException){Error="Your account cannot submit this report.";}catch{Error="Submission could not be confirmed. Retry with this draft; the operation ID prevents duplicates.";}finally{Busy=false;}}
 
     private async Task Invalid() { Reviewed = false; await Errors.FocusAsync(); }
     private void DraftChanged() => Reviewed = false;

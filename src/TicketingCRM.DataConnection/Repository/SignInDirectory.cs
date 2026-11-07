@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TicketingCRM.DataConnection.DbContexts;
 using TicketingCRM.Domain.Identity.Interfaces;
-namespace TicketingCRM.Infrastructure.Administration;
+namespace TicketingCRM.DataConnection.Repository;
 // Identity-directory exception: scope is a password-verified user, never a client-supplied tenant.
 public sealed class SignInDirectory(IDbContextFactory<AppDbContext> factory) : ISignInDirectory
 {

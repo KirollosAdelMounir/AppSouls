@@ -6,6 +6,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Markdig" Version="1.6.0" />
+    <PackageReference Include="HtmlSanitizer" Version="11.0.16" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+    <PackageReference Include="PDFsharp-MigraDoc" Version="6.2.4" />
+    <None Update="Assets/NotoSans-LICENSE.txt" CopyToPublishDirectory="PreserveNewest" Link="third-party/NotoSans-LICENSE.txt" />
+    <EmbeddedResource Include="Assets/NotoSans-Regular.ttf" LogicalName="AppSouls.NotoSans.ttf" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../TicketingCRM.Domain/TicketingCRM.Domain.csproj" />
   </ItemGroup>

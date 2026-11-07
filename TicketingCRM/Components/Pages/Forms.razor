@@ -1,0 +1,17 @@
+@page "/forms"
+@page "/forms/new"
+@page "/forms/{Id:guid}/edit"
+@page "/forms/{Id:guid}/submissions"
+@attribute [Authorize(Policy = "FormsManager")]
+@inject NavigationManager Navigation
+<PageTitle>Forms | App Souls</PageTitle>
+<div class="page-heading page-enter"><div><p class="eyebrow">LISTEN &amp; COLLECT</p><h1>@Title</h1><p>@Description</p></div>@if(Mode != "list"){<a class="button secondary" href="/forms">All forms</a>}else{<a class="button primary" href="/forms/new">Create form</a>}</div>
+<TicketingCRM.Components.Forms.FormsWorkspace Mode="@Mode" FormId="@RecordId" @key="Navigation.Uri" @rendermode="InteractiveServer" />
+@code {
+ [Parameter] public Guid? Id { get; set; }
+ private string Path => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Trim('/');
+ private string Mode => Path == "forms/new" ? "new" : Path.EndsWith("/edit") ? "edit" : Path.EndsWith("/submissions") ? "submissions" : "list";
+ private Guid? RecordId => Mode is "edit" or "submissions" ? Id : null;
+ private string Title => Mode switch { "new" => "Create form", "edit" => "Edit form", "submissions" => "Form submissions", _ => "Forms" };
+ private string Description => Mode switch { "new" => "Build a focused questionnaire for feedback, votes or leads.", "edit" => "Review and edit a draft before publishing.", "submissions" => "Review this form’s answers and export them for analysis.", _ => "Choose a form to manage or review its responses." };
+}

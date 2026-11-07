@@ -1,0 +1,3 @@
+@inject TicketingCRM.Domain.Support.Interfaces.IRichTextRenderer Renderer
+<div class="rich-text-content">@((MarkupString)Renderer.Render(Value))</div>
+@code{[Parameter]public string Value{get;set;}="";}

@@ -1,0 +1,8 @@
+@using TicketingCRM.Domain.Support.DTOs
+<div class="conversation-messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions">
+@foreach(var message in Messages){<article class="conversation-message @(message.Own ? "own" : "")" @key="message.Id"><header><strong>@message.Author</strong><time datetime="@message.CreatedAtUtc.ToString("O")">@message.CreatedAtUtc.ToString("dd MMM HH:mm 'UTC'")</time></header><RichTextContent Value="@message.Body" />
+ @if(ChatAttachments.Any(x=>x.ReplyId==message.Id)){<div class="message-attachments">@foreach(var file in ChatAttachments.Where(x=>x.ReplyId==message.Id)){<a @key="file.Id" class="message-attachment" href="/api/support-conversations/chat-attachments/@file.Id" download="@file.Filename" data-transfer-download><AppIcon Name="attachment" /><span>@file.Filename<small>@file.Size.ToString("N0") bytes</small></span></a>}</div>}
+@if(TicketId is {} ticket&&message.Own){<a href="@($"/support/{ticket}/attachments?replyId={message.Id}")">Attach files to this reply</a>}</article>}
+@if(Messages.Count==0){<p>No replies yet.</p>}
+</div>
+@code{[Parameter]public IReadOnlyList<ConversationMessage> Messages{get;set;}=[];[Parameter]public IReadOnlyList<SupportAttachmentDto> ChatAttachments{get;set;}=[];[Parameter]public Guid? TicketId{get;set;}}

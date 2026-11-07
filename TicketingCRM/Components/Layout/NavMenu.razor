@@ -1,16 +1,17 @@
 <nav aria-label="Main navigation">
-    <NavLink href="/" Match="NavLinkMatch.All"><AppIcon Name="overview" />Overview</NavLink>
-    <NavLink href="sales"><AppIcon Name="contracts" />Sales pipeline</NavLink>
-    <NavLink href="customers"><AppIcon Name="customers" />Customers</NavLink>
-    <NavLink href="contracts"><AppIcon Name="contracts" />Orders &amp; contracts</NavLink>
-    <div class="workspace-label">LICENSING</div>
+    <AuthorizeView Policy="StaffWorkspace"><NavLink href="/" Match="NavLinkMatch.All"><AppIcon Name="overview" />Overview</NavLink></AuthorizeView>
+    <AuthorizeView Policy="SalesWorkspace"><NavLink href="leads"><AppIcon Name="customers" />Leads</NavLink><NavLink href="opportunities"><AppIcon Name="contracts" />Opportunities</NavLink></AuthorizeView>
+    <AuthorizeView Policy="StaffWorkspace"><NavLink href="customers"><AppIcon Name="customers" />Customers</NavLink></AuthorizeView>
+    <AuthorizeView Policy="SalesWorkspace"><NavLink href="contracts"><AppIcon Name="contracts" />Contracts</NavLink><NavLink href="orders"><AppIcon Name="contracts" />Orders</NavLink><NavLink href="invoices"><AppIcon Name="contracts" />Invoices</NavLink><NavLink href="catalog"><AppIcon Name="products" />Sales catalog</NavLink></AuthorizeView>
+    <div class="workspace-label">SOFTWARE &amp; LICENSING</div>
     <NavLink href="downloads"><AppIcon Name="products" />Software downloads</NavLink>
     <NavLink href="products"><AppIcon Name="products" />Software catalog</NavLink>
-    <NavLink href="license-models"><AppIcon Name="licenses" />License models</NavLink>
+    <AuthorizeView Policy="DeveloperWorkspace"><NavLink href="license-models"><AppIcon Name="licenses" />License models</NavLink></AuthorizeView>
     <NavLink href="licenses"><AppIcon Name="licenses" />Licenses</NavLink>
     <NavLink href="installations"><AppIcon Name="installations" />Installations</NavLink>
-    <div class="workspace-label">MANAGE</div>
-    <NavLink href="support"><AppIcon Name="support" />Support</NavLink>
-    <NavLink href="users"><AppIcon Name="customers" />Users &amp; access</NavLink>
-    <NavLink href="settings"><AppIcon Name="settings" />Settings</NavLink>
+    <div class="workspace-label">WORKSPACE</div>
+    <AuthorizeView Policy="FormsManager"><NavLink href="forms"><AppIcon Name="contracts" />Forms</NavLink></AuthorizeView>
+    <NavLink href="support"><AppIcon Name="support" />Support <span class="notification-count" data-chat-unread="all" hidden></span></NavLink>
+    <AuthorizeView Policy="AdministratorWorkspace"><NavLink href="users"><AppIcon Name="customers" />Users &amp; access</NavLink></AuthorizeView>
+    <AuthorizeView Policy="PlatformAdministrator"><NavLink href="settings"><AppIcon Name="settings" />System settings</NavLink></AuthorizeView>
 </nav>

@@ -1,0 +1,9 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+  <Bundle Name="App Souls Setup" Manufacturer="Tetrarchia" Version="$(var.ProductVersion)" UpgradeCode="A97A3B69-B2A4-4D1B-8564-416964AFC023">
+    <BootstrapperApplication><bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" /></BootstrapperApplication>
+    <Chain>
+      <ExePackage Id="HostDependencies" SourceFile="$(var.RunnerPath)" InstallArguments="dependencies" RepairArguments="dependencies" DetectCondition="0" Permanent="yes" PerMachine="yes" Vital="yes" />
+      <MsiPackage Id="AppSouls" SourceFile="$(var.MsiPath)" Vital="yes" />
+    </Chain>
+  </Bundle>
+</Wix>

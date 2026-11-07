@@ -1,4 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+using TicketingCRM.DataConnection.Repository.Queries;
+
 using Microsoft.AspNetCore.DataProtection;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
@@ -107,12 +108,8 @@ public sealed class DatabaseMaintenanceWorker(DatabaseMaintenanceCoordinator coo
         {
             var provider = Enum.Parse<DatabaseProvider>(request.Provider);
             // Revalidate the initiating platform administrator immediately before the offline operation.
-            await using (var sourceDb = DatabaseLifecycle.Open((Provider)(int)source.DatabaseProvider, source.DatabaseConnectionString))
-            {
-                if (!await sourceDb.Users.AnyAsync(x => x.Id == coordinator.ActorId && x.IsPlatformAdministrator && x.SecurityStamp == coordinator.SecurityStamp, stoppingToken) ||
-                    !await sourceDb.TenantMemberships.IgnoreQueryFilters().AnyAsync(x => x.UserId == coordinator.ActorId && x.TenantId == coordinator.TenantId && x.IsActive, stoppingToken))
-                    throw new UnauthorizedAccessException();
-            }
+            if (!await TicketingCRM.DataConnection.Repository.InstallationRepository.HasMembershipAsync((Provider)(int)source.DatabaseProvider, source.DatabaseConnectionString, coordinator.ActorId, coordinator.TenantId, coordinator.SecurityStamp, true, stoppingToken))
+                throw new UnauthorizedAccessException();
             if (request.Mode == "Copy")
                 await DatabaseCopy.CopyAsync((Provider)(int)source.DatabaseProvider, source.DatabaseConnectionString,
                     (Provider)(int)provider, request.ConnectionString, coordinator.Report, stoppingToken);
@@ -120,30 +117,23 @@ public sealed class DatabaseMaintenanceWorker(DatabaseMaintenanceCoordinator coo
             {
                 coordinator.Report(new("Checking target catalog", null));
                 // A switch can reuse accounts, but cannot use a new administrator to adopt another database.
-                await using (var before = DatabaseLifecycle.Open((Provider)(int)provider, request.ConnectionString))
-                    if (!await before.Users.AnyAsync(x => x.Id == coordinator.ActorId && x.SecurityStamp == coordinator.SecurityStamp, stoppingToken) ||
-                        !await before.TenantMemberships.IgnoreQueryFilters().AnyAsync(x => x.UserId == coordinator.ActorId && x.TenantId == coordinator.TenantId && x.IsActive, stoppingToken))
-                        throw new UnauthorizedAccessException();
+                if (!await TicketingCRM.DataConnection.Repository.InstallationRepository.HasMembershipAsync((Provider)(int)provider, request.ConnectionString, coordinator.ActorId, coordinator.TenantId, coordinator.SecurityStamp, false, stoppingToken))
+                    throw new UnauthorizedAccessException();
                 await DatabaseLifecycle.ApplyAsync((Provider)(int)provider, request.ConnectionString, stoppingToken);
             }
             coordinator.Report(new("Validating target administrator", 99));
-            await using (var target = DatabaseLifecycle.Open((Provider)(int)provider, request.ConnectionString))
+            if (!await TicketingCRM.DataConnection.Repository.InstallationRepository.HasMembershipAsync((Provider)(int)provider, request.ConnectionString, coordinator.ActorId, coordinator.TenantId, coordinator.SecurityStamp, true, stoppingToken))
+                throw new InvalidOperationException("The target does not contain this installation's authorized administrator. The original connection was retained.");
+            // Installation keys remain unchanged; verify stored protected values before switching.
+            await foreach (var token in TicketingCRM.DataConnection.Repository.InstallationRepository.ProtectedTokensAsync((Provider)(int)provider, request.ConnectionString, stoppingToken))
             {
-                if (!await target.Users.AnyAsync(x => x.Id == coordinator.ActorId && x.SecurityStamp == coordinator.SecurityStamp && x.IsPlatformAdministrator, stoppingToken) ||
-                    !await target.TenantMemberships.IgnoreQueryFilters().AnyAsync(x => x.UserId == coordinator.ActorId && x.TenantId == coordinator.TenantId && x.IsActive, stoppingToken))
-                    throw new InvalidOperationException("The target does not contain this installation's authorized administrator. The original connection was retained.");
-                // Database copies do not replace installation keys. Reject a switch if protected values belong to another key ring.
-                await foreach (var token in target.UserTokens.AsNoTracking().AsAsyncEnumerable().WithCancellation(stoppingToken))
-                {
-                    if (token.Value is null) continue;
-                    if (!token.Value.StartsWith("protected:v1:", StringComparison.Ordinal)) throw new InvalidOperationException("Target token protection is incompatible.");
-                    protection.CreateProtector("AppSouls.IdentityTokens.v1", token.UserId.ToString("N"), token.LoginProvider, token.Name).Unprotect(token.Value[13..]);
-                }
-                await foreach (var message in target.OutboxMessages.IgnoreQueryFilters().AsNoTracking().Where(x => x.Kind == "CustomerInvitation" && x.DeliveredAtUtc == null).AsAsyncEnumerable().WithCancellation(stoppingToken))
-                {
-                    using var payload = JsonDocument.Parse(message.PayloadJson);
-                    protection.CreateProtector("AppSouls.CustomerInvitation.v1").Unprotect(payload.RootElement.GetProperty("ProtectedToken").GetString()!);
-                }
+                if (!token.Value.StartsWith("protected:v1:", StringComparison.Ordinal)) throw new InvalidOperationException("Target token protection is incompatible.");
+                protection.CreateProtector("AppSouls.IdentityTokens.v1", token.UserId.ToString("N"), token.LoginProvider, token.Name).Unprotect(token.Value[13..]);
+            }
+            await foreach (var payloadJson in TicketingCRM.DataConnection.Repository.InstallationRepository.PendingInvitationPayloadsAsync((Provider)(int)provider, request.ConnectionString, stoppingToken))
+            {
+                using var payload = JsonDocument.Parse(payloadJson);
+                protection.CreateProtector("AppSouls.CustomerInvitation.v1").Unprotect(payload.RootElement.GetProperty("ProtectedToken").GetString()!);
             }
             await vault.SaveAsync(DatabaseMaintenanceCoordinator.WithDatabase(source, provider, request.ConnectionString), stoppingToken);
             var prior = coordinator.Progress;

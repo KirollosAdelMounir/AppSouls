@@ -1,0 +1,25 @@
+@page "/orders"
+@page "/orders/new"
+@page "/orders/{Id:guid}"
+@page "/invoices"
+@page "/invoices/new"
+@page "/invoices/{Id:guid}"
+@page "/contracts/{Id:guid}"
+@page "/catalog"
+@page "/catalog/{Id:guid}/pricing"
+@attribute [Authorize(Policy = "StaffWorkspace")]
+@inject NavigationManager Navigation
+<PageTitle>@Title | App Souls</PageTitle>
+<div class="page-heading page-enter"><div><p class="eyebrow">COMMERCIAL WORKSPACE</p><h1>@Title</h1><p>@Description</p></div><div class="workflow-toolbar">@if(Area == "orders" && Mode == "list"){<AuthorizeView Policy="SalesWorkspace"><a class="button primary" href="/orders/new">Record order</a></AuthorizeView>}@if(Mode != "list"){<a class="button secondary" href="/@Area">Back to @Area</a>}</div></div>
+<TicketingCRM.Components.Commerce.CommerceWorkspace Area="@Area" Mode="@Mode" RecordId="Id" OrderId="OrderId" ContractId="ContractId" Page="@Math.Max(1,Page)" @key="Navigation.Uri" @rendermode="InteractiveServer" />
+@code {
+ [Parameter]public Guid? Id{get;set;}
+ [SupplyParameterFromQuery]public Guid? OrderId{get;set;}
+ [SupplyParameterFromQuery]public Guid? ContractId{get;set;}
+ [SupplyParameterFromQuery]public int Page{get;set;}=1;
+ private string[] Parts=>Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Trim('/').Split('/');
+ private string Area=>Parts[0];
+ private string Mode=>Parts.Length==1?"list":Parts[1]=="new"?"new":Area=="catalog"?"pricing":"detail";
+ private string Title=>Area switch{"catalog"=>Mode=="pricing"?"Pricing details":"Sales catalog","contracts"=>"Contract details","invoices"=>Mode=="new"?"Create invoice":Mode=="detail"?"Invoice details":"Invoices",_=>Mode=="new"?"Record order":Mode=="detail"?"Order details":"Orders"};
+ private string Description=>Area switch{"catalog"=>"Available software, pricing and leadership-reviewed commercial descriptions.","invoices"=>"Sales-entered invoice records and downloadable PDFs.","contracts"=>"Customer terms, purchased software and supporting commercial records.",_=>"Detailed orders, item pricing and invoice records."};
+}

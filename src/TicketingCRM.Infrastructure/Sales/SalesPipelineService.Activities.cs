@@ -1,4 +1,5 @@
-using Microsoft.EntityFrameworkCore;
+using TicketingCRM.DataConnection.Repository.Queries;
+
 using TicketingCRM.Domain.Persistence.Models;
 using TicketingCRM.Domain.Sales.DTOs;
 namespace TicketingCRM.Infrastructure.Sales;
@@ -12,8 +13,8 @@ public sealed partial class SalesPipelineService
   var digest=Digest(new{Activity=true,request.RecordId,request.IsOpportunity,request.Kind,subject,notes,followUp});
   if(await Replayed(s,request.IsOpportunity?null:request.RecordId,request.IsOpportunity?request.RecordId:null,request.OperationId,digest,cancellationToken))return;
   string stage;
-  if(request.IsOpportunity){var item=await s.Query<SalesOpportunity>().SingleOrDefaultAsync(x=>x.Id==request.RecordId,cancellationToken)??throw new ArgumentException("Opportunity not found.");if(item.Version!=request.ExpectedVersion)throw new InvalidOperationException("The opportunity changed. Reload before recording activity.");stage=item.Stage.ToString();item.FollowUpAtUtc=followUp;}
-  else{var item=await s.Query<SalesLead>().SingleOrDefaultAsync(x=>x.Id==request.RecordId,cancellationToken)??throw new ArgumentException("Lead not found.");if(item.Version!=request.ExpectedVersion)throw new InvalidOperationException("The lead changed. Reload before recording activity.");stage=item.Stage.ToString();item.FollowUpAtUtc=followUp;}
+  if(request.IsOpportunity){var item=await s.Repository<SalesOpportunity>().GetAllQueryable().SingleOrDefaultAsync(x=>x.Id==request.RecordId,cancellationToken)??throw new ArgumentException("Opportunity not found.");if(item.Version!=request.ExpectedVersion)throw new InvalidOperationException("The opportunity changed. Reload before recording activity.");stage=item.Stage.ToString();item.FollowUpAtUtc=followUp;}
+  else{var item=await s.Repository<SalesLead>().GetAllQueryable().SingleOrDefaultAsync(x=>x.Id==request.RecordId,cancellationToken)??throw new ArgumentException("Lead not found.");if(item.Version!=request.ExpectedVersion)throw new InvalidOperationException("The lead changed. Reload before recording activity.");stage=item.Stage.ToString();item.FollowUpAtUtc=followUp;}
   History(s,request.IsOpportunity?null:request.RecordId,request.IsOpportunity?request.RecordId:null,request.OperationId,digest,stage,stage,$"[{request.Kind}] {subject}\n{notes}");await s.CommitAsync(cancellationToken);
  }
 }

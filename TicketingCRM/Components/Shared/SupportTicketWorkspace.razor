@@ -1,0 +1,43 @@
+@using TicketingCRM.ViewModels
+@using TicketingCRM.Domain.Support.Models
+@inject TicketingCRM.Domain.Support.Interfaces.ISupportConversationService Service
+@inject TicketingCRM.Domain.Support.Interfaces.ISupportReportService Reports
+@inject TicketingCRM.Domain.Identity.Interfaces.ICurrentActor Actor
+<OperationFeedback Busy="Model.Busy" Message="@Model.Message" Error="Model.HasError" />
+@if(Model.Ticket is {} ticket)
+{
+ <div class="workflow-intro page-enter"><h2>@ticket.Reference · @ticket.Title</h2><p>@ticket.Kind · urgency @ticket.Urgency</p></div>
+ <nav class="workflow-tabs page-enter" aria-label="Ticket views">@foreach(var tab in Sections){<a href="@Link(tab.Key)" aria-current="@(Mode==tab.Key?"page":null)">@tab.Value</a>}</nav>
+ <div class="workflow-stack page-enter">
+ @if(Mode=="details")
+ {
+  <section class="panel workspace-form"><h2>Inquiry</h2><RichTextContent Value="@ticket.Description" /><dl class="record-details"><dt>Application version</dt><dd>@ticket.ApplicationVersion</dd><dt>Environment</dt><dd>@ticket.Environment</dd><dt>Urgency</dt><dd>@ticket.Urgency</dd></dl>@if(!string.IsNullOrWhiteSpace(ticket.Steps)){<h3>Steps to reproduce</h3><p class="form-description">@ticket.Steps</p>}@if(!string.IsNullOrWhiteSpace(ticket.Expected)){<h3>Expected result</h3><p class="form-description">@ticket.Expected</p>}@if(!string.IsNullOrWhiteSpace(ticket.Actual)){<h3>Actual result</h3><p class="form-description">@ticket.Actual</p>}</section>
+ }
+ else if(Mode=="replies")
+ {
+  <section class="panel workspace-form"><h2>Replies</h2><ConversationMessages Messages="ticket.Messages" TicketId="TicketId" /><p class="availability">Latest 100 replies. Both Technical and Sales staff can reply to a customer ticket.</p>@if(ticket.CanReply){<form class="conversation-composer" @onsubmit="()=>Model.ReplyAsync(TicketId)" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@(Model.Busy||!RendererInfo.IsInteractive)"><RichTextEditor Label="Reply to ticket" @bind-Value="Model.Text" Required="true" /><button type="submit" class="button primary">Post reply</button></fieldset></form>}@if(Model.LastReplyId is {} reply){<a class="button secondary" href="@($"/support/{TicketId}/attachments?replyId={reply}")">Add attachments to your reply</a>}</section>
+ }
+ else if(Mode=="attachments")
+ {
+  <section class="panel workspace-form"><h2>Attachments</h2><p>Attachments are private to authorized members of this ticket. Every file must pass a malware scan before it can be downloaded.</p>@foreach(var attachment in ticket.Attachments){<article class="form-record" @key="attachment.Id"><h3>@attachment.Filename</h3><p>@attachment.Size bytes · @attachment.UploadedAtUtc.ToString("u")</p><a class="button secondary" href="@($"/api/support-conversations/attachments/{attachment.Id}")" data-enhance-nav="false" data-transfer-download data-transfer-filename="@attachment.Filename">Download attachment</a></article>}@if(ticket.Attachments.Count==0){<p>No attachments yet.</p>}@if(ticket.CanReply&&(ReplyId is not null||ticket.CanAttachInitial)){<TransferUpload Label="Attach a file (up to 20 MiB)" ButtonText="Scan and attach" Accept=".txt,.log,.pdf,.png,.jpg,.jpeg,.zip" MaximumSize="@(20L*1024*1024)" OnUpload="Attach" />}else if(ticket.CanReply){<p><a href="@Link("replies")">Post a reply</a>, then attach files to that reply.</p>}</section>
+ }
+ else if(Mode=="progress"&&Model.Progress?.Report is {} report)
+ {
+  <section class="panel workspace-form"><h2>@SupportStageLabel.Name(report.Stage)</h2><ol class="support-stages">@foreach(var stage in Enum.GetValues<SupportStage>()){<li class="@(stage==report.Stage?"current-stage":"")"><span class="step-number">@((int)stage+1)</span><div><h3>@SupportStageLabel.Name(stage)</h3>@if(stage==report.Stage){<p>Current stage</p>}</div></li>}</ol><h3>Customer-visible history</h3>@foreach(var item in report.History){<p><time>@item.OccurredAt.ToString("u")</time> · @item.CustomerVisibleMessage</p>}</section>
+  @if(report.Stage!=SupportStage.Closed&&(Actor.CustomerId is null||report.Stage==SupportStage.Completed))
+  {
+   <section class="panel workspace-form"><h2>Move to @SupportStageLabel.Name(Model.Progress.Next)</h2><form @onsubmit="()=>Model.AdvanceAsync(TicketId)" @onsubmit:preventDefault><fieldset class="form-fields" disabled="@(Model.Busy||!RendererInfo.IsInteractive)">@if(Model.Progress.Next==SupportStage.ReceivedByTechnicalMember){<SoulDropdown Label="Assigned technical member" Options="Model.AssigneeOptions" @bind-Value="Model.AssigneeLabel" />}<div class="soul-field"><label for="ticket-update">Customer-visible update</label><textarea id="ticket-update" class="soul-input" @bind="Model.Progress.UpdateMessage" required maxlength="2000"></textarea></div>@if(Model.Progress.Next is SupportStage.Completed or SupportStage.Closed){<div class="soul-field"><label for="ticket-reason">@(Model.Progress.Next==SupportStage.Completed?"Resolution":"Closure reason")</label><textarea id="ticket-reason" class="soul-input" @bind="Model.Progress.Reason" required maxlength="1000"></textarea></div>}<button type="submit" class="button primary">Update stage</button></fieldset></form></section>
+  }
+ }
+ </div>
+}
+@code {
+ [Parameter]public Guid TicketId{get;set;}
+ [Parameter]public string Mode{get;set;}="details";
+ [Parameter]public Guid? ReplyId{get;set;}
+ private ConversationsViewModel Model=default!;
+ private static readonly IReadOnlyDictionary<string,string> Sections=new Dictionary<string,string>{["details"]="Inquiry",["replies"]="Replies",["attachments"]="Attachments",["progress"]="Progress"};
+ private string Link(string section)=>section=="details"?$"/support/{TicketId}":$"/support/{TicketId}/{section}";
+ protected override async Task OnParametersSetAsync(){Model=new(Service,Reports,Actor);await Model.LoadTicketAsync(TicketId);}
+ private async Task Attach(BrowserUpload upload){await Model.AttachAsync(TicketId,ReplyId,upload);if(Model.HasError)throw new ArgumentException(Model.Message);}
+}

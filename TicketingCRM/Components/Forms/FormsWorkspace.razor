@@ -1,0 +1,57 @@
+@using TicketingCRM.Domain.Forms.Interfaces
+@using TicketingCRM.ViewModels
+@inject IFormService Service
+@inject NavigationManager Navigation
+<div class="page-enter forms-workspace">
+<OperationFeedback Message="@Model.Message" Error="@Model.HasError" Busy="@Model.Busy" />
+@if(Mode == "new") { <FormEditor Model="Model" OnSave="Save" /> }
+else if(Mode == "edit")
+{
+    @if(Model.Definition is {} definition)
+    {
+        <nav class="workflow-tabs" aria-label="Form views"><a class="active" aria-current="page" href="@($"/forms/{definition.Id}/edit")">Form details</a><a href="@($"/forms/{definition.Id}/submissions")">Submissions</a></nav>
+        @if(definition.Status == "Draft") { <FormEditor Model="Model" OnSave="Save" /> }
+        else { <section class="panel workspace-form"><h2>@definition.Title</h2><p>@definition.Description</p><p>Published questions are fixed so that existing responses keep their meaning. Create a new form to change the questionnaire.</p><ol>@foreach(var field in definition.Fields){<li @key="field.Key">@field.Label · @field.Type @(field.Required ? "· Required" : "")</li>}</ol><a class="button secondary" href="/forms/new">Create another form</a></section> }
+    }
+}
+else if(Mode == "submissions")
+{
+    @if(Model.Submissions is not null)
+    {
+        <div class="workflow-toolbar"><a class="button secondary" href="@($"/forms/{FormId}/edit")">Form details</a><a class="button primary" href="@($"/api/forms/{FormId}/export")" data-enhance-nav="false" data-transfer-download data-transfer-filename="@($"form-{FormId:N}.xlsx")">Export Excel sheet</a></div>
+        <FormResponses Model="Model" OnPageChanged="page => Model.ReadAsync(FormId!.Value, page)" />
+    }
+}
+else
+{
+    <section class="panel forms-panel" aria-labelledby="saved-forms-heading"><h2 id="saved-forms-heading">Your forms</h2>
+    @if(Model.Forms is null){<p role="status">@(Model.Busy ? "Loading forms…" : "Forms could not be loaded.")</p>}
+    else if(Model.Forms.Items.Count == 0){<p>No forms yet. Create your first questionnaire.</p>}
+    else
+    {
+        @foreach(var form in Model.Forms.Items)
+        {
+            <article class="form-record" @key="form.Id"><div class="record-heading"><div><h3><a href="@($"/forms/{form.Id}/edit")">@form.Title</a></h3><p>@form.Status · @form.SubmissionCount responses</p></div><div class="forms-actions"><a class="button secondary" href="@($"/forms/{form.Id}/submissions")">View submissions</a><a class="button secondary" href="@($"/forms/{form.Id}/edit")">@(form.Status == "Draft" ? "Edit draft" : "Details")</a><button class="button secondary" disabled="@Model.Busy" @onclick="() => Model.ChangeStateAsync(form)">@(form.Status == "Published" ? "Close form" : form.Status == "Closed" ? "Reopen" : "Publish")</button>@if(form.Status == "Published"){<a href="/f/@form.PublicKey" target="_blank" rel="noopener noreferrer">Public form <span class="sr-only">(new tab)</span></a>}</div></div></article>
+        }
+        <div class="forms-actions" aria-label="Forms pages"><button class="button secondary" disabled="@(Model.Busy || Model.Forms.Page <= 1)" @onclick="() => Model.LoadAsync(Model.Forms.Page - 1)">Previous</button><span>Page @Model.Forms.Page</span><button class="button secondary" disabled="@(Model.Busy || !Model.Forms.HasMore)" @onclick="() => Model.LoadAsync(Model.Forms.Page + 1)">Next</button></div>
+    }
+    </section>
+}
+</div>
+@code {
+ [Parameter] public string Mode { get; set; } = "list";
+ [Parameter] public Guid? FormId { get; set; }
+ private FormsViewModel Model = default!;
+ protected override async Task OnParametersSetAsync()
+ {
+     Model = new(Service);
+     if(Mode == "edit" && FormId is {} edit) await Model.LoadEditorAsync(edit);
+     else if(Mode == "submissions" && FormId is {} submissions) await Model.ReadAsync(submissions);
+     else if(Mode == "list") await Model.LoadAsync();
+ }
+ private async Task Save()
+ {
+     if(Mode == "edit") await Model.UpdateAsync(); else await Model.CreateAsync();
+     if(!Model.HasError && Model.LastSavedId is {} id) Navigation.NavigateTo($"/forms/{id}/edit");
+ }
+}

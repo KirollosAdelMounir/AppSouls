@@ -12,6 +12,20 @@
             </div>
         </details>
     }
+    else if (!string.IsNullOrEmpty(StaticFieldName))
+    {
+        <input type="hidden" name="@StaticFieldName" value="@Value" />
+        <details class="soul-dropdown" data-static-dropdown>
+            <summary id="@Id" aria-labelledby="@($"{Id}-label")"><span data-static-label>@(string.IsNullOrEmpty(Value) ? "Choose an answer" : Value)</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></summary>
+            <div class="dropdown-panel" role="group" aria-labelledby="@($"{Id}-label")">
+                <button type="button" class="dropdown-option" data-static-value="">Clear answer</button>
+                @foreach (var option in Options)
+                {
+                    <button type="button" class="dropdown-option" data-static-value="@option" aria-pressed="@(Value == option)">@option</button>
+                }
+            </div>
+        </details>
+    }
     else if (!string.IsNullOrEmpty(FormFieldName))
     {
         <details class="soul-dropdown" data-form-dropdown>
@@ -38,6 +52,7 @@
     }
 </div>
 @code {
+    [Parameter] public string? StaticFieldName { get; set; }
     [Parameter] public string? FormFieldName { get; set; }
     [Parameter] public IReadOnlyDictionary<string,string> FormOptions { get; set; } = new Dictionary<string,string>();
     [Parameter] public bool ClientTheme { get; set; }

@@ -1,0 +1,4 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+  <PropertyGroup><OutputType>Package</OutputType><InstallerPlatform>x64</InstallerPlatform><OutputName>AppSouls</OutputName><DefineConstants>PublishDir=$(PublishDir);RunnerPath=$(RunnerPath);ProductVersion=$(ProductVersion)</DefineConstants></PropertyGroup>
+  <ItemGroup><Compile Include="$(PayloadSource)" /></ItemGroup>
+</Project>

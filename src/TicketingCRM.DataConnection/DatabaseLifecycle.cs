@@ -19,7 +19,7 @@ public static class DatabaseLifecycle
     public static AppDbContext Open(DatabaseProvider provider, string connection)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>();
-        DependencyInjection.ConfigureProvider(options, provider, connection);
+        DependencyInjection.ConfigureProvider(options, provider, connection, administrative: true);
         return provider == DatabaseProvider.PostgreSql ? new PostgreSqlAppDbContext(options.Options) : new SqlServerAppDbContext(options.Options);
     }
 
@@ -95,6 +95,20 @@ public static class DatabaseLifecycle
         if (!actualColumns.SetEquals(expectedColumns)) throw new InvalidOperationException("The catalog has schema drift. No schema changes were applied.");
         var accounts = await db.Users.AsNoTracking().AnyAsync(ct);
         return new(applied.Length == known.Length ? "Current" : "UpgradeRequired", applied.Length, known.Length - applied.Length, accounts);
+    }
+
+    /// <summary>Startup upgrades are limited to an already initialized, recognized installation.</summary>
+    public static async Task<DatabaseInspection> UpgradeExistingAsync(DatabaseProvider provider, string connection, CancellationToken ct = default)
+    {
+        var inspection = await InspectAsync(provider, connection, ct);
+        if (inspection.AppliedMigrations == 0 || !inspection.HasAccounts || inspection.State is not ("Current" or "UpgradeRequired"))
+            throw new InvalidOperationException("First-time database activation must be completed through guided server setup.");
+        if (inspection.State == "Current") return inspection;
+        // EF uses the provider migration lock. No request host or outbox worker is running at this point.
+        var upgraded = await ApplyAsync(provider, connection, ct);
+        if (upgraded.State != "Current" || !upgraded.HasAccounts)
+            throw new InvalidOperationException("The updated database could not be verified. Application services were not started.");
+        return upgraded;
     }
 
     public static async Task<DatabaseInspection> ApplyAsync(DatabaseProvider provider, string connection, CancellationToken ct = default)

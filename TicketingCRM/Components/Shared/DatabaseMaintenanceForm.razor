@@ -8,9 +8,7 @@
         <SoulDropdown Id="maintenance-mode" Label="Operation" Value="@Mode" ValueChanged="value=>Mode=value" Options="Modes" />
         <input type="hidden" name="Mode" value="@Mode" />
         @if(Mode!="Upgrade") {
-        <SoulDropdown Id="maintenance-provider" Label="Target provider" Value="@Provider" ValueChanged="value=>Provider=value" Options="ServerConnectionViewModel.Providers" />
-        <input type="hidden" name="Provider" value="@Provider" />
-        <div class="soul-field"><label for="maintenance-connection">Target connection string</label><input id="maintenance-connection" class="soul-input" name="ConnectionString" type="password" required maxlength="8192" autocomplete="new-password" /><small>Kept in memory during the operation and saved to the encrypted vault only after successful verification. No credentials appear in progress details.</small></div>
+        <DatabaseConnectionFields Model="Connection" IdPrefix="maintenance" ProviderFieldName="Provider" />
         }
         <button type="button" class="button secondary" data-maintenance-inspect>Check target server &amp; schema</button>
         <label class="checkbox-field"><input type="checkbox" name="ConfirmMaintenance" value="true" required /> I have a verified backup and have stopped every other App Souls instance and database writer. Enter maintenance mode, then create/copy or upgrade the selected catalog.</label>
@@ -41,7 +39,11 @@
     private IJSObjectReference? Module;
     private IJSObjectReference? Binding;
     private bool Ready;
-    private string Provider="PostgreSql",Mode="Copy";
+    [Parameter] public string CurrentProvider { get; set; } = "PostgreSql";
+    [Parameter] public TicketingCRM.Domain.Administration.DTOs.SetupDatabaseFields? CurrentFields { get; set; }
+    private ServerConnectionViewModel Connection = default!;
+    private string Mode="Switch";
+    protected override void OnInitialized() => Connection = new(new(false, false, false, CurrentProvider, "", CurrentFields));
     private static readonly string[] Modes=["Copy","Switch","Upgrade"];
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

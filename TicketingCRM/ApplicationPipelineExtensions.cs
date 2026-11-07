@@ -6,6 +6,26 @@ namespace TicketingCRM;
 
 internal static class ApplicationPipelineExtensions
 {
+    internal static async Task ApplyExistingDatabaseUpdatesAsync(this WebApplication app,
+        TicketingCRM.Core.SystemConfiguration.Models.ServerConfiguration? configuration, bool maintenanceMode)
+    {
+        if (configuration is null || maintenanceMode) return;
+        app.Logger.LogInformation("Checking the existing installation for database updates before starting application services");
+        try
+        {
+            await TicketingCRM.DataConnection.DatabaseLifecycle.UpgradeExistingAsync(
+                (TicketingCRM.DataConnection.Configuration.DatabaseProvider)(int)configuration.DatabaseProvider,
+                configuration.DatabaseConnectionString);
+            app.Logger.LogInformation("The existing database is current; application services can start");
+        }
+        catch (Exception exception)
+        {
+            app.Logger.LogError("Automatic database upgrade failed ({FailureType}); request handling and outbox processing were not started", exception.GetType().Name);
+            // Provider exception messages may contain connection details. Keep bootstrap output nonsecret.
+            throw new InvalidOperationException("The existing database could not be upgraded or verified. App Souls was not started. Check database availability, migration permissions and compatible migration history. First-time activation requires guided setup.");
+        }
+    }
+
     private static bool IsMaintenanceAsset(PathString path)
     {
         if (path.StartsWithSegments("/api")) return false;
@@ -15,6 +35,9 @@ internal static class ApplicationPipelineExtensions
     }
     internal static WebApplication UseAppSouls(this WebApplication app, bool activated, DatabaseMaintenanceCoordinator maintenance)
     {
+        // Only the installer-configured loopback proxy can supply scheme/client headers.
+        // IIS supplies its own integration; never clear trusted proxy restrictions globally.
+        if (Environment.GetEnvironmentVariable("APPSOULS_BEHIND_NGINX") == "1") app.UseForwardedHeaders();
         if (!app.Environment.IsDevelopment())
         {
             app.UseExceptionHandler("/Error", createScopeForErrors: true);

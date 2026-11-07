@@ -1,12 +1,11 @@
 @page "/account/security"
-@layout AccountLayout
+@layout SettingsLayout
 @attribute [Authorize]
 @attribute [ExcludeFromInteractiveRouting]
-@using Microsoft.AspNetCore.Identity
-@using TicketingCRM.DataConnection.Identity
-@inject UserManager<ApplicationUser> Users
+@inject TicketingCRM.Domain.Accounts.Interfaces.IAccountSettingsService Accounts
 
 <PageTitle>Account security | App Souls</PageTitle>
+<nav class="workflow-tabs page-enter" aria-label="Account settings"><a href="/account/settings">Profile</a><a href="/account/settings/password">Password</a><a href="/account/security" aria-current="page">Security</a></nav>
 <section class="panel account-panel page-enter">
     <p class="eyebrow">YOUR ACCOUNT</p><h1>Two-step verification</h1>
     @if (Enabled)
@@ -37,7 +36,6 @@
     protected override async Task OnInitializedAsync()
     {
         HttpContext.Response.Headers.CacheControl = "no-store, private";
-        var user = await Users.GetUserAsync(HttpContext.User);
-        Enabled = user is not null && await Users.GetTwoFactorEnabledAsync(user);
+        Enabled = (await Accounts.GetAsync()).TwoFactorEnabled;
     }
 }

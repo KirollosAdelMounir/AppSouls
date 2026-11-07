@@ -1,5 +1,8 @@
 @page "/users"
-@attribute [Authorize]
+@page "/users/new"
+@attribute [Authorize(Policy="AdministratorWorkspace")]
+@inject NavigationManager Navigation
 <PageTitle>Users | App Souls</PageTitle>
-<div class="page-heading"><div><p class="eyebrow">WORKSPACE ADMINISTRATION</p><h1>Users &amp; access</h1><p>Give your team and customers access to the right workspace.</p></div><a class="button secondary" href="/customers">Manage customers</a></div>
-<UserAdministration @rendermode="InteractiveServer" />
+<div class="page-heading page-enter"><div><p class="eyebrow">WORKSPACE ADMINISTRATION</p><h1>@(Creating ? "Create account" : "Users & access")</h1><p>Give your team and customers access to the right workspace.</p></div><a class="button secondary" href="@(Creating ? "/users" : "/users/new")">@(Creating ? "Workspace members" : "Create account")</a></div>
+<UserAdministration Creating="Creating" @key="Creating" @rendermode="InteractiveServer" />
+@code {private bool Creating=>Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0]=="users/new";}

@@ -1,5 +1,29 @@
 @page "/sales"
-@attribute [Authorize]
-<PageTitle>Sales pipeline | App Souls</PageTitle>
-<div class="page-heading"><div><p class="eyebrow">FROM FIRST CONTACT TO CUSTOMER</p><h1>Sales pipeline</h1><p>Keep prospects, opportunities and the next conversation in view.</p></div><a class="button secondary" href="/customers">Customers</a></div>
-<TicketingCRM.Components.Sales.SalesWorkspace @rendermode="InteractiveServer" />
+@page "/leads"
+@page "/leads/new"
+@page "/leads/{Id:guid}"
+@page "/leads/{Id:guid}/history"
+@page "/leads/{Id:guid}/activity"
+@page "/leads/{Id:guid}/stage"
+@page "/leads/{Id:guid}/convert"
+@page "/opportunities"
+@page "/opportunities/new"
+@page "/opportunities/{Id:guid}"
+@page "/opportunities/{Id:guid}/history"
+@page "/opportunities/{Id:guid}/activity"
+@page "/opportunities/{Id:guid}/stage"
+@attribute [Authorize(Policy = "SalesWorkspace")]
+@inject NavigationManager Navigation
+<PageTitle>@Title | App Souls</PageTitle>
+<div class="page-heading page-enter"><div><p class="eyebrow">CUSTOMER RELATIONSHIPS</p><h1>@Title</h1><p>@(Opportunity ? "Manage potential sales for existing customers." : "Follow each contact from first enquiry to qualification.")</p></div><a class="button @(Mode == "list" ? "primary" : "secondary")" href="@(Mode == "list" ? Prefix + "/new" : Prefix)">@(Mode == "list" ? Opportunity ? "Add opportunity" : "Add lead" : "Back to " + (Opportunity ? "opportunities" : "leads"))</a></div>
+<nav class="workflow-tabs page-enter" aria-label="Sales workspaces"><NavLink href="/leads">Leads</NavLink><NavLink href="/opportunities">Opportunities</NavLink></nav>
+<TicketingCRM.Components.Sales.SalesWorkspace Opportunity="Opportunity" Mode="@Mode" RecordId="RecordId" @key="Navigation.Uri" @rendermode="InteractiveServer" />
+@code {
+ [Parameter] public Guid? Id { get; set; }
+ private string[] Segments => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].Trim('/').Split('/');
+ private bool Opportunity => Segments[0] == "opportunities";
+ private string Prefix => Opportunity ? "/opportunities" : "/leads";
+ private Guid? RecordId => Segments.Length >= 2 && Guid.TryParse(Segments[1], out var id) ? id : null;
+ private string Mode => Segments.Length == 1 ? "list" : Segments[1] == "new" ? "new" : Segments.Length == 2 ? "detail" : Segments[^1];
+ private string Title => Mode switch { "new" => Opportunity ? "Add opportunity" : "Add lead", "history" => Opportunity ? "Opportunity history" : "Lead history", "activity" => "Record activity", "stage" => "Update stage", "convert" => "Convert lead", "detail" => Opportunity ? "Opportunity details" : "Lead details", _ => Opportunity ? "Opportunities" : "Leads" };
+}

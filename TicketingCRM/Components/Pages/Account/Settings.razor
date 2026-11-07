@@ -1,15 +1,25 @@
 @page "/account/settings"
-@layout AccountLayout
+@page "/account/settings/password"
+@inject NavigationManager Navigation
+@layout SettingsLayout
 @attribute [Authorize]
 @attribute [ExcludeFromInteractiveRouting]
 @inject TicketingCRM.Domain.Accounts.Interfaces.IAccountSettingsService Accounts
 <PageTitle>Account settings | App Souls</PageTitle>
-<section class="panel account-panel page-enter"><p class="eyebrow">YOUR ACCOUNT</p><h1>Account settings</h1>
+<div class="page-heading page-enter"><div><p class="eyebrow">YOUR ACCOUNT</p><h1>Account settings</h1><p>Manage your profile, password and account security.</p></div><a class="button secondary" href="/">Return to workspace</a></div>
 @if(Result is not null){<p class="feedback" role="status">@(Result=="saved"?"Your name was updated.":"The change could not be completed. Check the fields and retry.")</p>}
-<p>@Profile?.Email</p><form method="post" action="/account/settings/name" data-enhance="false"><AntiforgeryToken /><div class="soul-field"><label for="profile-name">Display name</label><input id="profile-name" class="soul-input" name="DisplayName" value="@Profile?.DisplayName" maxlength="200" required autocomplete="name" /></div><button class="button primary" type="submit">Save profile</button></form>
-<h2>Change password</h2><p>At least 8 characters with uppercase, lowercase, numbers and symbols. Changing it signs you out of existing sessions.</p>
-<form method="post" action="/account/settings/password" data-enhance="false"><AntiforgeryToken /><div class="soul-field"><label for="current-password">Current password</label><input id="current-password" class="soul-input" name="CurrentPassword" type="password" maxlength="1024" required autocomplete="current-password" /></div><div class="soul-field"><label for="new-password">New password</label><input id="new-password" class="soul-input" name="NewPassword" type="password" minlength="8" maxlength="1024" required autocomplete="new-password" /></div><div class="soul-field"><label for="confirm-password">Confirm new password</label><input id="confirm-password" class="soul-input" name="ConfirmPassword" type="password" minlength="8" maxlength="1024" required autocomplete="new-password" /></div><button class="button primary" type="submit">Change password</button></form><a href="/">Return to workspace</a></section>
+<nav class="workflow-tabs page-enter" aria-label="Account settings"><a href="/account/settings" aria-current="@(!PasswordView ? "page" : null)">Profile</a><a href="/account/settings/password" aria-current="@(PasswordView ? "page" : null)">Password</a><a href="/account/security">Security</a></nav>
+<div class="workflow-stack page-enter">
+@if(!PasswordView){
+<section class="panel account-panel"><h2>Profile</h2><p>@Profile?.Email</p>
+<form method="post" action="/account/settings/name" data-enhance="false"><AntiforgeryToken /><div class="soul-field"><label for="profile-name">Display name</label><input id="profile-name" class="soul-input" name="DisplayName" value="@Profile?.DisplayName" maxlength="200" required autocomplete="name" /></div><button class="button primary" type="submit">Save profile</button></form>
+<h2>Account security</h2><p>Two-step verification is optional. Manage your authenticator and recovery codes.</p><a class="button secondary" href="/account/security">Manage two-step verification</a></section>
+}
+@if(PasswordView){<section class="panel account-panel"><h2>Change password</h2><p>At least 8 characters with uppercase, lowercase, numbers and symbols. Changing it signs you out of existing sessions.</p>
+<form method="post" action="/account/settings/password" data-enhance="false"><AntiforgeryToken /><div class="soul-field"><label for="current-password">Current password</label><input id="current-password" class="soul-input" name="CurrentPassword" type="password" maxlength="1024" required autocomplete="current-password" /></div><div class="soul-field"><label for="new-password">New password</label><input id="new-password" class="soul-input" name="NewPassword" type="password" minlength="8" maxlength="1024" required autocomplete="new-password" /></div><div class="soul-field"><label for="confirm-password">Confirm new password</label><input id="confirm-password" class="soul-input" name="ConfirmPassword" type="password" minlength="8" maxlength="1024" required autocomplete="new-password" /></div><button class="button primary" type="submit">Change password</button></form></section>}
+</div>
 @code {
+ private bool PasswordView => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0].EndsWith("/password");
  [SupplyParameterFromQuery]public string? Result{get;set;}
  private TicketingCRM.Domain.Accounts.DTOs.AccountProfile? Profile;
  protected override async Task OnInitializedAsync()=>Profile=await Accounts.GetAsync();

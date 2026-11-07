@@ -1,0 +1,51 @@
+@using TicketingCRM.ViewModels
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<div class="transfer-upload">
+<div class="soul-field"><label for="@InputId">@Label</label><InputFile @ref="FileInput" @key="InputVersion" id="@InputId" OnChange="Choose" disabled="@(Busy||!RendererInfo.IsInteractive)" accept="@Accept" /></div>
+@if(ShowSelectionSummary){<p>@(File?.Name ?? "No file selected")</p>}
+@if(ShowUploadButton){<button id="@ButtonId" type="button" class="button primary" disabled="@(Busy||!CanUpload||File is null||!RendererInfo.IsInteractive)" @onclick="Upload">@ButtonText</button>}
+@if(File is not null){<button class="button secondary" type="button" disabled="@Busy" @onclick="Clear">Remove file</button>}
+@if(Error is not null){<p class="feedback" role="alert">@Error</p>}
+</div>
+@code {
+ [Parameter]public bool ShowUploadButton{get;set;}=true;
+ [Parameter]public bool ShowSelectionSummary{get;set;}=true;
+ [Parameter]public bool CanUpload{get;set;}=true;
+ [Parameter]public EventCallback<string?> OnSelectionChanged{get;set;}
+ public bool HasFile=>File is not null;
+ public bool IsUploading=>Busy;
+ public Task UploadSelectedAsync()=>Upload();
+ [Parameter]public string Label{get;set;}="File";
+ [Parameter]public string ButtonText{get;set;}="Upload";
+ [Parameter]public string Accept{get;set;}="";
+ [Parameter]public long MaximumSize{get;set;}=20L*1024*1024;
+ [Parameter]public EventCallback<BrowserUpload> OnUpload{get;set;}
+ private string InputId=$"upload-file-{Guid.NewGuid():N}",ButtonId=$"upload-button-{Guid.NewGuid():N}";
+ private Guid OperationId=Guid.NewGuid();
+ private InputFile? FileInput;private bool ReturnFileFocus;
+ private async Task Clear(){File=null;Error=null;InputVersion++;ReturnFileFocus=true;await OnSelectionChanged.InvokeAsync(null);}
+ protected override async Task OnAfterRenderAsync(bool firstRender){if(ReturnFileFocus&&FileInput?.Element is {} input){ReturnFileFocus=false;await input.FocusAsync();}}
+ private IBrowserFile? File;private bool Busy;private string? Error;private int InputVersion;private CancellationTokenSource? Cancellation;
+ private async Task Choose(InputFileChangeEventArgs e){File=e.File;Error=null;OperationId=Guid.NewGuid();if(File.Size>MaximumSize){Error=$"This file exceeds the permitted {MaximumSize:N0}-byte size.";File=null;}await OnSelectionChanged.InvokeAsync(File?.Name);}
+ [JSInvokable]public void CancelUpload()=>Cancellation?.Cancel();
+ private async Task Upload()
+ {
+  if(File is null||Busy)return;Busy=true;Error=null;var file=File;string? id=null;IJSObjectReference? module=null;
+  using var cancellation=new CancellationTokenSource();Cancellation=cancellation;using var reference=DotNetObjectReference.Create(this);var clock=System.Diagnostics.Stopwatch.StartNew();var last=TimeSpan.Zero;
+  try
+  {
+   module=await JS.InvokeAsync<IJSObjectReference>("import","./"+Assets["transfer-progress.js"]);id=await JS.InvokeAsync<string>("appSoulsTransfers.begin","Upload",file.Name,file.Size,ShowUploadButton?ButtonId:InputId);await JS.InvokeVoidAsync("appSoulsTransfers.bindCancellation",id,reference);
+   await using var stream=new TicketingCRM.Core.FileProcessing.TransferReadStream(()=>file.OpenReadStream(MaximumSize,cancellation.Token),async(bytes,ct)=>{if(clock.Elapsed-last<TimeSpan.FromMilliseconds(250)&&bytes!=file.Size)return;last=clock.Elapsed;await JS.InvokeVoidAsync("appSoulsTransfers.update",ct,id,bytes,bytes==file.Size?"Received — scanning and saving":"Uploading");});
+   await OnUpload.InvokeAsync(new BrowserUpload(file.Name,stream,cancellation.Token,OperationId));
+   await JS.InvokeVoidAsync("appSoulsTransfers.finish",id,true,"File scanned and saved.");File=null;InputVersion++;await OnSelectionChanged.InvokeAsync(null);
+  }
+  catch(Exception exception)when(exception is ArgumentException or IOException or InvalidOperationException or OperationCanceledException or JSException)
+  {
+   Error=cancellation.IsCancellationRequested?"Upload cancelled.":"The upload could not be confirmed. Check the latest attachments before retrying.";
+   if(id is not null)try{await JS.InvokeVoidAsync("appSoulsTransfers.finish",id,false,Error);}catch(JSDisconnectedException){}
+  }
+  finally{Cancellation=null;Busy=false;if(module is not null)try{await module.DisposeAsync();}catch(JSDisconnectedException){}}
+ }
+ public async ValueTask DisposeAsync(){if(Cancellation is {} cancellation)await cancellation.CancelAsync();}
+}

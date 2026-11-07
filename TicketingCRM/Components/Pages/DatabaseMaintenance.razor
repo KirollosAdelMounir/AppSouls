@@ -1,11 +1,18 @@
 @page "/database-maintenance"
-@layout AccountLayout
+@layout SettingsLayout
 @attribute [Authorize(Policy = "PlatformAdministrator")]
 @attribute [ExcludeFromInteractiveRouting]
+@inject TicketingCRM.Domain.Configuration.Interfaces.IServerSettingsService Settings
 <PageTitle>Database maintenance | App Souls</PageTitle>
 <section class="panel workspace-form page-enter maintenance-page">
     <p class="eyebrow">APP SOULS · DATABASE MAINTENANCE</p>
     <h1>Move or upgrade your database</h1>
     <p>Check the server and catalog first. Copy preserves the current data in an empty target. Switch reuses this installation's existing accounts and applies only pending App Souls migrations.</p>
-    <DatabaseMaintenanceForm @rendermode="InteractiveServer" />
+    @if (Configuration is not null) { <DatabaseMaintenanceForm CurrentProvider="@Configuration.DatabaseProvider" CurrentFields="Configuration.Database" @rendermode="InteractiveServer" /> }
+    else { <p role="alert">The current database settings could not be loaded. Return to System Settings and retry.</p> }
 </section>
+
+@code {
+ private TicketingCRM.Domain.Configuration.DTOs.ServerSettingsDto? Configuration;
+ protected override async Task OnInitializedAsync() { try { Configuration = await Settings.GetAsync(); } catch (UnauthorizedAccessException) { } }
+}

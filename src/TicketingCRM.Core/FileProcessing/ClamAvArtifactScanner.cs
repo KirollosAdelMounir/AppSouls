@@ -6,11 +6,36 @@ using TicketingCRM.Core.SystemConfiguration.Models;
 using TicketingCRM.Domain.Delivery.DTOs;
 using TicketingCRM.Domain.Delivery.Interfaces;
 namespace TicketingCRM.Core.FileProcessing;
-public sealed class ClamAvArtifactScanner(ServerConfiguration configuration):IArtifactScanner
+public sealed class ClamAvArtifactScanner(ServerConfiguration configuration):IArtifactScanner,IArtifactScannerProbe
 {
+ public const int DefaultPort = 3310;
+ public int? LocalPort => TryGetPort(out var port) ? port : null;
+ private bool TryGetPort(out int port)
+ {
+  port=DefaultPort;
+  return !configuration.Integrations.TryGetValue("malware-scanner",out var integration)||!integration.Credentials.TryGetValue("Port",out var text)||int.TryParse(text,out port)&&port is >=1 and <=65535;
+ }
+ public async Task<ArtifactScannerAvailability> CheckAsync(CancellationToken cancellationToken=default)
+ {
+  cancellationToken.ThrowIfCancellationRequested();
+  if(!TryGetPort(out var port))return new(false,null,"scanner-configuration","The scanner port override is invalid. Use a local port between 1 and 65535.");
+  try
+  {
+   using var timeout=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);timeout.CancelAfter(TimeSpan.FromSeconds(5));
+   using var client=new TcpClient();await client.ConnectAsync(IPAddress.Loopback,port,timeout.Token);await using var stream=client.GetStream();
+   await stream.WriteAsync(Encoding.ASCII.GetBytes("zPING\0"),timeout.Token);
+   var reply=new byte[128];var length=0;
+   while(length<reply.Length){var n=await stream.ReadAsync(reply.AsMemory(length,1),timeout.Token);if(n==0)break;if(reply[length++]==0)break;}
+   var available=Encoding.ASCII.GetString(reply,0,length).TrimEnd('\0','\r','\n')=="PONG";
+   return new(available,port,available?"scanner-connected":"scanner-protocol",available?$"Local ClamAV is responding on port {port}. Publishing still requires a clean scan for each package.":"The local service did not return a valid ClamAV response. Publishing remains blocked.");
+  }
+  catch(OperationCanceledException)when(cancellationToken.IsCancellationRequested){throw;}
+  catch(Exception e)when(e is IOException or SocketException or OperationCanceledException)
+  {return new(false,port,"scanner-unavailable",$"ClamAV is not responding on local port {port}. Run the bundled server dependency installer, or check your managed ClamAV service. Publishing remains blocked.");}
+ }
  public async Task<ArtifactScanVerdict> ScanAsync(Stream content,CancellationToken cancellationToken=default)
  {
-  if(!configuration.Integrations.TryGetValue("malware-scanner",out var integration)||!integration.Credentials.TryGetValue("Port",out var portText)||!int.TryParse(portText,out var port)||port is <1 or >65535)return ArtifactScanVerdict.Unavailable;
+  if(!TryGetPort(out var port))return ArtifactScanVerdict.Unavailable;
   try
   {
    using var timeout=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);timeout.CancelAfter(TimeSpan.FromMinutes(2));
