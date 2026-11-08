@@ -1,5 +1,17 @@
 # Server hosting security requirements v1
 
+## SQL connection requirements v2 — 8 November 2026
+
+Threats include credential injection/exposure, confusing browser-user authority with the service identity, sending saved passwords to changed targets, and treating local Windows transports as remote or as available on Linux. Configuration remains behind the existing setup closure/antiforgery/rate limits or platform-administrator settings authorization; no new identity or tenant authority is introduced.
+
+| ID | Requirement | Evidence and limits |
+| --- | --- | --- |
+| HOST-SQL-IDENTITY-2 | Integrated connections use the application service identity; omit SQL username/password, with no browser-user impersonation. | `IntegratedConnectionsUseServiceIdentityWithoutCredentials`; live read-only LocalDB authentication under the current process. IIS/domain and Linux Kerberos qualification remains outstanding. |
+| HOST-SQL-SECRET-2 | Quote values through provider builders; never return secrets; only reuse passwords for the exact saved target/authentication/TLS/trust tuple. | `BuildsProviderConnectionWithoutChangingOrInjectingCredentialValues`, `PreservesPreparedPasswordOnlyForUnchangedTargetAndReturnsNoSecretMetadata`, `TrustOverrideIsExplicitAndCannotReusePasswordAfterAuthenticationOrTrustChanges`. |
+| HOST-SQL-TRANSPORT-2 | Reject malformed/ambiguous endpoints, require remote certificate-validated TLS, bound local trust overrides, and reject Windows-only protocols on Linux. | `RejectsMalformedOrAmbiguousSqlEndpoints`, `RejectsRemotePlaintextAndInvalidPortsButAllowsLocalDevelopment`, `WindowsLocalProtocolsArePreservedOrRejectedOnOtherHosts`, `LocalDbRequiresWindowsServiceIdentityWithoutPortOrTls`. Windows branches exercised; native Linux execution remains pending. |
+
+Local certificate trust deliberately skips certificate validation only for local development endpoints, requires TLS, and is off by default. LocalDB is explicitly unencrypted and restricted to Windows/local development. Setup/maintenance confirmation, migration lineage checks, prepared identity recovery and vault protection remain in place. Existing authorization/tenant suites were not replaced by connection-string tests. No new production assurance or risk acceptance is granted here.
+
 Scope: privileged deployment helpers, runtime downloads, Linux/nginx/systemd and Windows/IIS/ANCM hosting. The administrator running the installer and the complete published package are trusted. This is an implementation threat model, not an independent security certification. Baseline remains the proposed OWASP ASVS 5.0.0 L2 with selected privileged L3 requirements.
 
 | ID | Requirement | Evidence and limits |

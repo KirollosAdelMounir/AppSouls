@@ -2,12 +2,31 @@
 <input type="hidden" name="@ProviderFieldName" value="@Model.Provider" />
 <h3>Database connection</h3><div class="form-grid setup-database-grid">
 <SoulDropdown Id="@(IdPrefix + "-database-provider")" Label="Database provider" Value="@Model.Provider" ValueChanged="Model.ChangeProvider" Options="ServerConnectionViewModel.Providers" />
-<div class="soul-field"><label for="@(IdPrefix + "-db-server")">Server</label><input id="@(IdPrefix + "-db-server")" class="soul-input" name="DatabaseServer" @bind="Model.Server" @bind:event="oninput" required maxlength="253" autocomplete="off" placeholder="localhost or database.example.com" /></div>
-<div class="soul-field"><label for="@(IdPrefix + "-db-port")">Port</label><input id="@(IdPrefix + "-db-port")" class="soul-input" type="number" name="DatabasePort" @bind="Model.Port" @bind:event="oninput" required min="1" max="65535" /></div>
+<div class="soul-field"><label for="@(IdPrefix + "-db-server")">Server</label><input id="@(IdPrefix + "-db-server")" class="soul-input" name="DatabaseServer" @bind="Model.Server" @bind:event="oninput" required maxlength="@(Model.IsSqlServer ? 512 : 253)" autocomplete="off" aria-describedby="@(IdPrefix + "-db-server-help")" placeholder="localhost or database.example.com" /><small id="@(IdPrefix + "-db-server-help")">@(Model.IsSqlServer ? @"Hostname, IPv4/IPv6, server\instance or (localdb)\MSSQLLocalDB. Explicit tcp:, np: and lpc: endpoints are supported where available." : "Enter the PostgreSQL hostname or IP address.")</small></div>
+<div class="soul-field"><label for="@(IdPrefix + "-db-port")">Port @(Model.IsSqlServer ? "(optional)" : "")</label><input id="@(IdPrefix + "-db-port")" class="soul-input" type="number" name="DatabasePort" @bind="Model.Port" @bind:event="oninput" required="@(!Model.IsSqlServer)" min="1" max="65535" aria-describedby="@(IdPrefix + "-db-port-help")" /><small id="@(IdPrefix + "-db-port-help")">@(Model.IsSqlServer ? "Leave blank for instance discovery, LocalDB, named pipes, shared memory, or a port included in Server. A separate port forces TCP." : "The PostgreSQL listening port, usually 5432.")</small></div>
 <div class="soul-field"><label for="@(IdPrefix + "-db-catalog")">Database / catalog name</label><input id="@(IdPrefix + "-db-catalog")" class="soul-input" name="DatabaseCatalog" @bind="Model.Catalog" @bind:event="oninput" required maxlength="128" autocomplete="off" /></div>
+@if (Model.IsSqlServer)
+{
+<SoulDropdown Id="@(IdPrefix + "-db-authentication")" Label="SQL Server authentication" Value="@Model.Authentication" ValueChanged="Model.ChangeAuthentication" Options="ServerConnectionViewModel.AuthenticationOptions" />
+<input type="hidden" name="DatabaseIntegratedSecurity" value="@Model.IntegratedSecurity.ToString().ToLowerInvariant()" />
+}
+@if (!Model.IntegratedSecurity)
+{
 <div class="soul-field"><label for="@(IdPrefix + "-db-user")">Database username</label><input id="@(IdPrefix + "-db-user")" class="soul-input" name="DatabaseUserName" @bind="Model.UserName" @bind:event="oninput" required maxlength="256" autocomplete="off" /></div>
 <div class="soul-field"><label for="@(IdPrefix + "-db-password")">Database password</label><input id="@(IdPrefix + "-db-password")" class="soul-input" type="password" name="DatabasePassword" maxlength="8192" autocomplete="new-password" required="@(!Model.CanKeepPassword)" /><small>@(Model.CanKeepPassword?"A password is configured for this exact connection. Leave blank to keep it.":"Enter the password for this database user.")</small></div>
-</div><label class="checkbox-field"><input type="checkbox" name="DatabaseUseTls" value="true" @bind="Model.UseTls" /> Require TLS for the database connection</label><input type="hidden" name="DatabaseUseTls" value="false" /><p class="setup-consent">Remote servers require TLS. A local development server can connect without TLS. App Souls constructs and protects the connection string for you.</p>
+}
+</div>
+@if (Model.IsSqlServer && Model.IntegratedSecurity)
+{
+<p class="setup-consent">Uses the application service identity, never the signed-in browser user. On Windows/IIS, grant SQL access to the app pool or its configured service account. On Linux, configure Kerberos credentials and the SQL Server SPN. LocalDB requires Windows and an instance accessible to this service identity; it is intended for local development.</p>
+}
+<label class="checkbox-field"><input type="checkbox" name="DatabaseUseTls" value="true" @bind="Model.UseTls" /> Require TLS for the database connection</label><input type="hidden" name="DatabaseUseTls" value="false" />
+@if (Model.IsSqlServer)
+{
+<label class="checkbox-field"><input type="checkbox" name="DatabaseTrustServerCertificate" value="true" @bind="Model.TrustServerCertificate" /> Trust the local SQL Server certificate without validation</label><input type="hidden" name="DatabaseTrustServerCertificate" value="false" />
+<p class="setup-consent">Certificate validation is enabled by default and required for remote servers. This override is limited to local development servers. LocalDB does not provide TLS encryption; turn off Require TLS for LocalDB.</p>
+}
+<p class="setup-consent">Remote servers require TLS. A local development server can connect without TLS. App Souls constructs and protects the connection string for you.</p>
 @code {
  [Parameter, EditorRequired] public ServerConnectionViewModel Model { get; set; } = default!;
  [Parameter] public string IdPrefix { get; set; } = "setup";

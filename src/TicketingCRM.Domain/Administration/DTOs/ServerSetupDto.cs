@@ -17,7 +17,9 @@ public sealed class CompleteServerSetupRequest
     // Retained for private CLI/smoke inputs. The guided UI sends only the structured fields below.
     public string? DatabaseConnectionString { get; set; } = "";
     public string DatabaseServer {get;set;}="";
-    public int DatabasePort {get;set;}=5432;
+    public int? DatabasePort {get;set;}=5432;
+    public bool DatabaseIntegratedSecurity {get;set;}
+    public bool DatabaseTrustServerCertificate {get;set;}
     public string DatabaseCatalog {get;set;}="";
     public string DatabaseUserName {get;set;}="";
     public string? DatabasePassword {get;set;}="";
@@ -40,4 +42,5 @@ public sealed class PrepareAdministratorRequest
     public string Password {get;set;}="";
 }
 
-public sealed record SetupDatabaseFields(string Server,int Port,string Catalog,string UserName,bool UseTls,bool PasswordConfigured);
+public sealed record SetupDatabaseFields(string Server,int? Port,string Catalog,string UserName,bool UseTls,bool PasswordConfigured,
+    bool IntegratedSecurity = false, bool TrustServerCertificate = false);

@@ -1,5 +1,9 @@
 # App Souls implementation status
 
+## SQL Server connection configuration — 8 November 2026
+
+Setup and System Settings now expose SQL credentials or service-identity integrated authentication, optional SQL ports, named instances, LocalDB, IPv6 and explicit Windows local protocols. Remote TLS/certificate validation remains required; local certificate trust is an explicit opt-in. Metadata/password reuse includes authentication and trust settings. See [supported connection forms and qualification limits](../configuration/sql-server-connections.md). Live Windows LocalDB read-only connectivity and focused browser checks passed; native IIS/Linux Kerberos qualification and additional SqlClient authentication/HA modes remain outstanding.
+
 Updated 3 November 2026. This is an implemented development milestone, not a claim that the entire approved architecture or production assurance target is complete.
 
 ## Windows setup and cleanup milestone — 5 November 2026

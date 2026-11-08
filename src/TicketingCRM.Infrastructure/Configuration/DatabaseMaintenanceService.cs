@@ -52,7 +52,8 @@ public sealed class DatabaseMaintenanceService(IServerSettingsService settings, 
             if (!Enum.TryParse<DatabaseProvider>(request.Provider, out var provider) || !Enum.IsDefined(provider)) throw new ArgumentException("Choose a supported provider.");
             request.ConnectionString = TicketingCRM.Infrastructure.Administration.SetupDatabaseConnection.Build(provider,
                 new TicketingCRM.Domain.Administration.DTOs.CompleteServerSetupRequest { DatabaseServer = request.DatabaseServer, DatabasePort = request.DatabasePort,
-                    DatabaseCatalog = request.DatabaseCatalog, DatabaseUserName = request.DatabaseUserName, DatabasePassword = request.DatabasePassword, DatabaseUseTls = request.DatabaseUseTls }, saved);
+                    DatabaseCatalog = request.DatabaseCatalog, DatabaseUserName = request.DatabaseUserName, DatabasePassword = request.DatabasePassword, DatabaseUseTls = request.DatabaseUseTls,
+                    DatabaseIntegratedSecurity = request.DatabaseIntegratedSecurity, DatabaseTrustServerCertificate = request.DatabaseTrustServerCertificate }, saved);
         }
         return request;
     }

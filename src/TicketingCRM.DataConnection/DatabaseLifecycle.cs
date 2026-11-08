@@ -138,7 +138,9 @@ public static class DatabaseLifecycle
         {
             var sql = new SqlConnectionStringBuilder(connection);
             var host = sql.DataSource;
-            if (host.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase)) host = host[4..];
+            if (host.StartsWith("np:\\\\", StringComparison.OrdinalIgnoreCase)) host = host[5..];
+            else if (host.StartsWith("np:", StringComparison.OrdinalIgnoreCase)) host = host[3..];
+            else if (host.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase) || host.StartsWith("lpc:", StringComparison.OrdinalIgnoreCase)) host = host[4..];
             if (!Local(host.Split('\\')[0].Split(',')[0]) && !host.StartsWith("(localdb)\\", StringComparison.OrdinalIgnoreCase) &&
                 (sql.Encrypt == SqlConnectionEncryptOption.Optional || sql.TrustServerCertificate))
                 throw new ArgumentException("Remote SQL Server transfers require certificate-validated TLS.");
